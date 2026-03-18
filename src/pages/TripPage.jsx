@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import AvailabilityCalendar from '../components/AvailabilityCalendar'
 import UserPicker from '../components/UserPicker'
@@ -9,7 +9,7 @@ import {
   getTripUsers,
   getUserAvailability,
   replaceAvailability,
-} from '../lib/mockBackend'
+} from '../lib/supabaseBackend'
 import {
   getOrCreateAnonymousUser,
   getSelectedTripUser,
@@ -32,7 +32,13 @@ function groupAvailabilityByDate(availabilityRows) {
   }, {})
 }
 
-function byDateAscending([leftDate], [rightDate]) {
+function byPopularityThenDate([leftDate, leftUsers], [rightDate, rightUsers]) {
+  const countDifference = rightUsers.length - leftUsers.length
+
+  if (countDifference !== 0) {
+    return countDifference
+  }
+
   return leftDate.localeCompare(rightDate)
 }
 
@@ -51,18 +57,80 @@ function formatDate(dateKey, locale) {
   }).format(date)
 }
 
+function getIntervalFromEnv(value, fallbackMs) {
+  const configured = Number(value)
+
+  if (!Number.isFinite(configured)) {
+    return fallbackMs
+  }
+
+  return Math.max(1000, Math.floor(configured))
+}
+
+const AVAILABILITY_SYNC_INTERVAL_MS = getIntervalFromEnv(
+  import.meta.env.VITE_AVAILABILITY_SYNC_INTERVAL_MS,
+  10000,
+)
+
+const AVAILABILITY_POLL_INTERVAL_MS = getIntervalFromEnv(
+  import.meta.env.VITE_AVAILABILITY_POLL_INTERVAL_MS,
+  6000,
+)
+
+function normalizeDateKeys(dateKeys) {
+  return [...new Set((dateKeys ?? []).map((dateKey) => String(dateKey)))].sort((left, right) =>
+    left.localeCompare(right),
+  )
+}
+
+function areDateKeysEqual(leftDateKeys, rightDateKeys) {
+  const left = normalizeDateKeys(leftDateKeys)
+  const right = normalizeDateKeys(rightDateKeys)
+
+  if (left.length !== right.length) {
+    return false
+  }
+
+  return left.every((dateKey, index) => dateKey === right[index])
+}
+
+function withUserAvailabilityRows(rows, user, tripId, selectedDates) {
+  const safeRows = Array.isArray(rows) ? rows : []
+
+  if (!user?.id) {
+    return safeRows
+  }
+
+  const withoutUserRows = safeRows.filter((row) => row.user_id !== user.id)
+  const nextRows = normalizeDateKeys(selectedDates).map((date) => ({
+    id: `${user.id}-${date}`,
+    trip_id: tripId,
+    user_id: user.id,
+    date,
+    user_name: user.name,
+    user_color: user.color,
+  }))
+
+  return [...withoutUserRows, ...nextRows]
+}
+
 function TripPage({ tripId }) {
   const { t, i18n } = useTranslation()
   const [trip, setTrip] = useState(null)
   const [loading, setLoading] = useState(true)
   const [missingTrip, setMissingTrip] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const [shareCardOpen, setShareCardOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showLessPopularDates, setShowLessPopularDates] = useState(false)
   const [viewer] = useState(() => getOrCreateAnonymousUser())
   const [tripUsers, setTripUsers] = useState([])
   const [selectedTripUserId, setSelectedTripUserId] = useState(() => getSelectedTripUser(tripId))
   const [selectedDates, setSelectedDates] = useState([])
   const [availabilityRows, setAvailabilityRows] = useState([])
+  const pendingDatesRef = useRef([])
+  const syncedDatesRef = useRef([])
+  const isSyncingRef = useRef(false)
 
   const selectedTripUser = useMemo(() => {
     return tripUsers.find((user) => user.id === selectedTripUserId) ?? null
@@ -77,6 +145,26 @@ function TripPage({ tripId }) {
       return Math.max(highest, users.length)
     }, 0)
   }, [groupedAvailability])
+
+  const sortedAvailabilityEntries = useMemo(() => {
+    return Object.entries(groupedAvailability).sort(byPopularityThenDate)
+  }, [groupedAvailability])
+
+  const lessPopularDatesCount = useMemo(() => {
+    if (maxAvailabilityCount <= 0) {
+      return 0
+    }
+
+    return sortedAvailabilityEntries.filter(([, users]) => users.length < maxAvailabilityCount).length
+  }, [maxAvailabilityCount, sortedAvailabilityEntries])
+
+  const visibleAvailabilityEntries = useMemo(() => {
+    if (showLessPopularDates || maxAvailabilityCount <= 0) {
+      return sortedAvailabilityEntries
+    }
+
+    return sortedAvailabilityEntries.filter(([, users]) => users.length === maxAvailabilityCount)
+  }, [maxAvailabilityCount, showLessPopularDates, sortedAvailabilityEntries])
 
   useEffect(() => {
     identifyAnalyticsUser(viewer.id)
@@ -94,26 +182,59 @@ function TripPage({ tripId }) {
   }, [trip, tripUsers.length])
 
   useEffect(() => {
-    const foundTrip = getTrip(tripId)
+    let cancelled = false
 
-    if (!foundTrip) {
-      setMissingTrip(true)
-      setLoading(false)
-      return
+    async function loadTripState() {
+      setLoading(true)
+      setLoadError('')
+
+      try {
+        const foundTrip = await getTrip(tripId)
+
+        if (!foundTrip) {
+          if (!cancelled) {
+            setMissingTrip(true)
+            setTrip(null)
+            setTripUsers([])
+          }
+
+          return
+        }
+
+        const users = await getTripUsers(tripId)
+
+        if (cancelled) {
+          return
+        }
+
+        setTrip(foundTrip)
+        setTripUsers(users)
+        setMissingTrip(false)
+
+        if (!users.some((user) => user.id === selectedTripUserId)) {
+          setSelectedTripUserId(null)
+        }
+      } catch (error) {
+        console.error(error)
+
+        if (!cancelled) {
+          setLoadError('Unable to load trip right now. Please check Supabase configuration.')
+          setTrip(null)
+          setTripUsers([])
+          setMissingTrip(false)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
     }
 
-    setTrip(foundTrip)
-    const users = getTripUsers(tripId)
-    setTripUsers(users)
+    loadTripState()
 
-    if (users.some((user) => user.id === selectedTripUserId)) {
-      // Keep previously chosen user for this trip in this browser.
-    } else {
-      setSelectedTripUserId(null)
+    return () => {
+      cancelled = true
     }
-
-    setMissingTrip(false)
-    setLoading(false)
   }, [tripId, selectedTripUserId])
 
   useEffect(() => {
@@ -121,8 +242,29 @@ function TripPage({ tripId }) {
       return
     }
 
-    const ownDates = getUserAvailability(tripId, selectedTripUserId)
-    setSelectedDates(ownDates)
+    let cancelled = false
+
+    async function loadOwnDates() {
+      try {
+        const ownDates = await getUserAvailability(tripId, selectedTripUserId)
+
+        if (!cancelled) {
+          const normalizedDates = normalizeDateKeys(ownDates)
+
+          setSelectedDates(normalizedDates)
+          pendingDatesRef.current = normalizedDates
+          syncedDatesRef.current = normalizedDates
+        }
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    loadOwnDates()
+
+    return () => {
+      cancelled = true
+    }
   }, [tripId, selectedTripUserId])
 
   useEffect(() => {
@@ -130,20 +272,97 @@ function TripPage({ tripId }) {
       return
     }
 
-    function readSharedState() {
-      const rows = getTripAvailability(tripId)
-      setAvailabilityRows(rows)
+    let cancelled = false
+
+    async function readSharedState() {
+      try {
+        let rows = await getTripAvailability(tripId)
+
+        if (selectedTripUser) {
+          const hasPendingChanges = !areDateKeysEqual(pendingDatesRef.current, syncedDatesRef.current)
+
+          if (hasPendingChanges) {
+            rows = withUserAvailabilityRows(rows, selectedTripUser, tripId, pendingDatesRef.current)
+          }
+        }
+
+        if (!cancelled) {
+          setAvailabilityRows(rows)
+        }
+      } catch (error) {
+        console.error(error)
+      }
     }
 
     readSharedState()
-    const intervalId = window.setInterval(readSharedState, 2000)
+    const intervalId = window.setInterval(readSharedState, AVAILABILITY_POLL_INTERVAL_MS)
 
     return () => {
+      cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [tripId])
+  }, [tripId, selectedTripUser])
 
-  function handleUserSelect(userId) {
+  useEffect(() => {
+    if (!tripId || !selectedTripUser) {
+      return
+    }
+
+    let cancelled = false
+
+    async function flushPendingAvailability() {
+      if (isSyncingRef.current) {
+        return
+      }
+
+      const pendingDates = normalizeDateKeys(pendingDatesRef.current)
+      const syncedDates = normalizeDateKeys(syncedDatesRef.current)
+
+      if (areDateKeysEqual(pendingDates, syncedDates)) {
+        return
+      }
+
+      isSyncingRef.current = true
+
+      try {
+        await replaceAvailability(tripId, selectedTripUser.id, pendingDates)
+
+        if (cancelled) {
+          return
+        }
+
+        syncedDatesRef.current = pendingDates
+        const rows = await getTripAvailability(tripId)
+
+        if (!cancelled) {
+          setAvailabilityRows(rows)
+        }
+      } catch (error) {
+        console.error(error)
+      } finally {
+        isSyncingRef.current = false
+      }
+    }
+
+    const intervalId = window.setInterval(flushPendingAvailability, AVAILABILITY_SYNC_INTERVAL_MS)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [tripId, selectedTripUser])
+
+  async function handleUserSelect(userId) {
+    if (selectedTripUser && !areDateKeysEqual(pendingDatesRef.current, syncedDatesRef.current)) {
+      try {
+        const pendingDates = normalizeDateKeys(pendingDatesRef.current)
+        await replaceAvailability(tripId, selectedTripUser.id, pendingDates)
+        syncedDatesRef.current = pendingDates
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
     setSelectedTripUserId(userId)
     saveSelectedTripUser(tripId, userId)
     trackEvent('trip_user_selected', {
@@ -151,24 +370,43 @@ function TripPage({ tripId }) {
     })
   }
 
+  async function handleClearSelectedUser() {
+    if (selectedTripUser && !areDateKeysEqual(pendingDatesRef.current, syncedDatesRef.current)) {
+      try {
+        const pendingDates = normalizeDateKeys(pendingDatesRef.current)
+        await replaceAvailability(tripId, selectedTripUser.id, pendingDates)
+        syncedDatesRef.current = pendingDates
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    setSelectedTripUserId(null)
+  }
+
   function handleDatesChange(nextDates) {
     if (!selectedTripUserId) {
       return
     }
 
+    const normalizedDates = normalizeDateKeys(nextDates)
     const previousCount = selectedDates.length
-    const nextCount = nextDates.length
+    const nextCount = normalizedDates.length
 
-    setSelectedDates(nextDates)
+    setSelectedDates(normalizedDates)
+    pendingDatesRef.current = normalizedDates
+
+    if (selectedTripUser) {
+      setAvailabilityRows((currentRows) =>
+        withUserAvailabilityRows(currentRows, selectedTripUser, tripId, normalizedDates),
+      )
+    }
+
     trackEvent('availability_updated', {
       trip_id: tripId,
       selected_count: nextCount,
       delta: nextCount - previousCount,
     })
-
-    replaceAvailability(tripId, selectedTripUserId, nextDates)
-    const rows = getTripAvailability(tripId)
-    setAvailabilityRows(rows)
   }
 
   async function handleCopyLink() {
@@ -195,6 +433,23 @@ function TripPage({ tripId }) {
   }
 
   if (missingTrip || !trip) {
+    if (loadError) {
+      return (
+        <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6">
+          <div className="mx-auto max-w-3xl rounded-xl border border-rose-300 bg-white p-7">
+            <h1 className="text-2xl font-bold text-slate-900">Connection error</h1>
+            <p className="mt-2 text-sm text-slate-600">{loadError}</p>
+            <a
+              href="/"
+              className="mt-5 inline-flex h-10 items-center rounded-md bg-orange-500 px-4 text-sm font-semibold text-white transition duration-150 hover:bg-orange-600"
+            >
+              {t('trip.createNewTrip')}
+            </a>
+          </div>
+        </main>
+      )
+    }
+
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-3xl rounded-xl border border-slate-300 bg-white p-7">
@@ -322,7 +577,7 @@ function TripPage({ tripId }) {
             </div>
             <button
               type="button"
-              onClick={() => setSelectedTripUserId(null)}
+              onClick={handleClearSelectedUser}
               className="ml-auto rounded-md border border-slate-400 bg-white px-2.5 py-1 text-xs font-medium text-slate-800 transition duration-150 hover:bg-slate-100"
             >
               {t('trip.switchUser')}
@@ -341,13 +596,26 @@ function TripPage({ tripId }) {
           <section className="mx-auto mt-7 max-w-3xl rounded-xl border border-slate-300 bg-white p-6 sm:p-7">
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">{t('groupAvailability.title')}</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">{t('groupAvailability.subtitle')}</p>
+
+            {lessPopularDatesCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowLessPopularDates((current) => !current)}
+                className="mt-4 rounded-md border border-slate-400 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition duration-150 hover:bg-slate-100"
+              >
+                {showLessPopularDates
+                  ? 'Hide less popular dates'
+                  : `Show ${lessPopularDatesCount} less popular date${lessPopularDatesCount === 1 ? '' : 's'}`}
+              </button>
+            )}
+
             <ul className="mt-4 space-y-3">
-              {Object.entries(groupedAvailability).length === 0 && (
+              {sortedAvailabilityEntries.length === 0 && (
                 <li className="rounded-md border border-dashed border-slate-300 p-4 text-sm text-slate-500">
                   {t('groupAvailability.empty')}
                 </li>
               )}
-              {Object.entries(groupedAvailability).sort(byDateAscending).map(([dateKey, users]) => (
+              {visibleAvailabilityEntries.map(([dateKey, users]) => (
                 <li
                   key={dateKey}
                   className={`rounded-xl border p-3 transition duration-200 ${

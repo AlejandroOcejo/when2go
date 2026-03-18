@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import TripPage from './pages/TripPage'
 import { initAnalytics, trackEvent } from './lib/telemetry'
-import { createTrip } from './lib/mockBackend'
+import {
+  clearAccessToken,
+  createTrip,
+  hasStoredAccessToken,
+  storeAccessToken,
+  verifyAccessCode,
+} from './lib/supabaseBackend'
 import { getOrCreateAnonymousUser } from './lib/userIdentity'
 
 function getPathname() {
@@ -16,6 +22,11 @@ function App() {
   const [tripName, setTripName] = useState('')
   const [participantName, setParticipantName] = useState('')
   const [participants, setParticipants] = useState([])
+  const [isCreatingTrip, setIsCreatingTrip] = useState(false)
+  const [accessCodeInput, setAccessCodeInput] = useState('')
+  const [accessError, setAccessError] = useState('')
+  const [isVerifyingAccess, setIsVerifyingAccess] = useState(false)
+  const [isAccessGranted, setIsAccessGranted] = useState(() => hasStoredAccessToken())
 
   useEffect(() => {
     function onPopState() {
@@ -43,7 +54,7 @@ function App() {
     setPathname(path)
   }
 
-  function handleCreateTrip(event) {
+  async function handleCreateTrip(event) {
     event.preventDefault()
 
     const trimmed = tripName.trim()
@@ -55,16 +66,39 @@ function App() {
       return
     }
 
-    const trip = createTrip(trimmed, cleanParticipants)
-    trackEvent('trip_created', {
-      trip_id: trip.id,
-      participant_count: cleanParticipants.length,
-      trip_name_length: trimmed.length,
-    })
-    setTripName('')
-    setParticipantName('')
-    setParticipants([])
-    navigate(`/trip/${trip.id}`)
+    if (isCreatingTrip) {
+      return
+    }
+
+    try {
+      setIsCreatingTrip(true)
+      const trip = await createTrip(trimmed, cleanParticipants)
+
+      if (!trip?.id) {
+        throw new Error('Failed to create trip: missing trip id in response')
+      }
+
+      trackEvent('trip_created', {
+        trip_id: trip.id,
+        participant_count: cleanParticipants.length,
+        trip_name_length: trimmed.length,
+      })
+      setTripName('')
+      setParticipantName('')
+      setParticipants([])
+      navigate(`/trip/${trip.id}`)
+    } catch (error) {
+      console.error(error)
+
+      if (String(error?.message ?? '').includes('invalid_session')) {
+        clearAccessToken()
+        setIsAccessGranted(false)
+      }
+
+      window.alert('Unable to create trip right now. Please check Supabase configuration and try again.')
+    } finally {
+      setIsCreatingTrip(false)
+    }
   }
 
   function handleAddParticipant() {
@@ -99,6 +133,83 @@ function App() {
 
   function removeParticipant(nameToRemove) {
     setParticipants((current) => current.filter((name) => name !== nameToRemove))
+  }
+
+  async function handleAccessSubmit(event) {
+    event.preventDefault()
+
+    const entered = accessCodeInput.trim()
+
+    if (!entered) {
+      setAccessError('Enter a passcode to continue.')
+      return
+    }
+
+    if (isVerifyingAccess) {
+      return
+    }
+
+    try {
+      setIsVerifyingAccess(true)
+      const accessToken = await verifyAccessCode(entered)
+
+      if (!accessToken) {
+        setAccessError('Invalid passcode.')
+        return
+      }
+
+      storeAccessToken(accessToken)
+
+      setIsAccessGranted(true)
+      setAccessError('')
+      setAccessCodeInput('')
+    } catch (error) {
+      console.error(error)
+      setAccessError('Unable to verify passcode right now. Please try again.')
+    } finally {
+      setIsVerifyingAccess(false)
+    }
+  }
+
+  if (!isAccessGranted) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
+        <section className="mx-auto max-w-md rounded-xl border border-slate-300 bg-white p-7 sm:p-8">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">Private Access</p>
+          <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-950">Enter passcode</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">
+            This app is protected with a shared passcode.
+          </p>
+
+          <form className="mt-6 flex flex-col gap-3" onSubmit={handleAccessSubmit}>
+            <input
+              type="password"
+              autoComplete="off"
+              value={accessCodeInput}
+              onChange={(event) => {
+                setAccessCodeInput(event.target.value)
+
+                if (accessError) {
+                  setAccessError('')
+                }
+              }}
+              className="h-11 rounded-md border border-slate-400 bg-white px-3 text-slate-900 outline-none transition duration-150 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              placeholder="Passcode"
+            />
+
+            {accessError && <p className="text-xs font-medium text-rose-700">{accessError}</p>}
+
+            <button
+              type="submit"
+              disabled={isVerifyingAccess}
+              className="h-11 rounded-md bg-orange-500 px-4 text-sm font-semibold text-white transition duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-orange-300"
+            >
+              {isVerifyingAccess ? 'Checking...' : 'Continue'}
+            </button>
+          </form>
+        </section>
+      </main>
+    )
   }
 
   if (tripId) {
@@ -184,10 +295,10 @@ function App() {
           <p className="text-xs text-slate-500">{t('landing.participantsHint')}</p>
           <button
             type="submit"
-            disabled={participants.length === 0}
+            disabled={participants.length === 0 || isCreatingTrip}
             className="h-11 rounded-md bg-orange-500 px-4 text-sm font-semibold text-white transition duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-orange-300"
           >
-            {t('landing.createTrip')}
+            {isCreatingTrip ? 'Creating trip...' : t('landing.createTrip')}
           </button>
         </form>
       </section>

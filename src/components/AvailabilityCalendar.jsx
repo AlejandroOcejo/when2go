@@ -39,18 +39,8 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
 
-function formatDateLabel(dateKey, locale) {
-  const [year, month, day] = dateKey.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
-
-  return new Intl.DateTimeFormat(locale, {
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
-}
-
 function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, onChange }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [mode, setMode] = useState('multiple')
   const [rangeDraft, setRangeDraft] = useState(undefined)
   const selectedCount = selectedDates.length
@@ -69,36 +59,6 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
     `bg-transparent text-slate-900 shadow-[inset_0_0_0_2px_${BRAND_ORANGE_DARK}]`
 
   const safeTotalUsers = Math.max(totalUsers || 0, 1)
-
-  const mostSelectedSummary = useMemo(() => {
-    const entries = Object.entries(availabilityCountByDate)
-
-    if (entries.length === 0) {
-      return {
-        count: 0,
-        dates: [],
-      }
-    }
-
-    const maxCount = entries.reduce((highest, [, count]) => Math.max(highest, count), 0)
-
-    if (maxCount === 0) {
-      return {
-        count: 0,
-        dates: [],
-      }
-    }
-
-    const dates = entries
-      .filter(([, count]) => count === maxCount)
-      .map(([dateKey]) => dateKey)
-      .sort((left, right) => left.localeCompare(right))
-
-    return {
-      count: maxCount,
-      dates,
-    }
-  }, [availabilityCountByDate])
 
   function getAvailabilityOpacity(dateKey) {
     const availableUsers = availabilityCountByDate[dateKey] ?? 0
@@ -229,17 +189,6 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
           ? t('calendar.selectedNone')
           : t('calendar.selectedCount', { count: selectedCount })}
       </p>
-
-      <div className="mt-6 rounded-md border border-slate-300 bg-slate-50 px-3 py-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{t('calendar.mostSelected')}</p>
-        {mostSelectedSummary.count === 0 ? (
-          <p className="mt-1 text-sm leading-relaxed text-slate-600">{t('calendar.noSelections')}</p>
-        ) : (
-          <p className="mt-1 text-sm leading-relaxed text-slate-700">
-            {mostSelectedSummary.dates.map((dateKey) => formatDateLabel(dateKey, i18n.language)).join(', ')} ({mostSelectedSummary.count}/{safeTotalUsers})
-          </p>
-        )}
-      </div>
 
       <div className="mt-6 flex w-full justify-center">
         <div className="inline-flex rounded-md border border-slate-400 bg-white p-1">
