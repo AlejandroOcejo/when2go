@@ -1,0 +1,69 @@
+{
+  "brand": {
+    "name": "Trip Availability"
+  },
+  "badge": {
+    "mvp": "MVP",
+    "liveTrip": "Live trip"
+  },
+  "footer": {
+    "tagline": "Made for easier group trip planning.",
+    "about": "About",
+    "contact": "Contact",
+    "privacy": "Privacy",
+    "terms": "Terms"
+  },
+  "landing": {
+    "eyebrow": "Travel date picker",
+    "title": "Coordinate group travel dates in one shared link.",
+    "subtitle": "No signup, no passwords. Create a trip, share the URL, and let everyone mark available dates.",
+    "tripNameLabel": "What should we call this trip?",
+    "tripNamePlaceholder": "Example: Lisbon getaway",
+    "participantsLabel": "Who is joining?",
+    "participantPlaceholder": "Add participant name",
+    "add": "Add",
+    "removeParticipant": "Remove {{name}}",
+    "participantsHint": "Add at least one person before creating your shared trip page.",
+    "createTrip": "Create trip"
+  },
+  "trip": {
+    "loading": "Loading trip...",
+    "notFoundTitle": "Trip not found",
+    "notFoundBody": "This link is invalid or the trip no longer exists.",
+    "createNewTrip": "Create a new trip",
+    "shareSubtitle": "Share this page with your group so everyone can mark dates.",
+    "shareInputAria": "Shareable trip link",
+    "copyLink": "Copy link",
+    "copied": "Copied",
+    "copiedHint": "Link copied. Ready to send.",
+    "shareHint": "Anyone with this link can update their availability.",
+    "expandCard": "Expand group details",
+    "collapseCard": "Collapse group details",
+    "noParticipantsTitle": "No participants in this trip",
+    "noParticipantsBody": "Ask the organizer to recreate the trip and add participant names first.",
+    "youAre": "You are",
+    "switchUser": "Switch user"
+  },
+  "calendar": {
+    "title": "When can you travel?",
+    "subtitle": "Choose one or more days, or select a date range.",
+    "selectedNone": "No days selected yet",
+    "selectedCount_one": "{{count}} day selected",
+    "selectedCount_other": "{{count}} days selected",
+    "mostSelected": "Most selected days",
+    "noSelections": "No selections yet.",
+    "multipleDates": "Multiple dates",
+    "dateRange": "Date range"
+  },
+  "userPicker": {
+    "title": "Who are you?",
+    "subtitle": "Choose your name to start marking your available dates."
+  },
+  "groupAvailability": {
+    "title": "Group availability",
+    "subtitle": "The most popular dates are highlighted in the calendar.",
+    "empty": "No dates selected yet.",
+    "topMatch": "Top match",
+    "available": "{{count}} available"
+  }
+}
