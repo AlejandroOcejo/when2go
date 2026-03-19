@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import TripPage from './pages/TripPage'
+import brandIcon from './assets/svgS.svg'
 import { initAnalytics, trackEvent } from './lib/telemetry'
 import {
   clearAccessToken,
@@ -15,6 +16,14 @@ function getPathname() {
   return window.location.pathname
 }
 
+function formatMonthKey(year, month) {
+  if (!year || !month) {
+    return ''
+  }
+
+  return `${year}-${month}`
+}
+
 function App() {
   const { t } = useTranslation()
   const [viewer] = useState(() => getOrCreateAnonymousUser())
@@ -22,11 +31,37 @@ function App() {
   const [tripName, setTripName] = useState('')
   const [participantName, setParticipantName] = useState('')
   const [participants, setParticipants] = useState([])
+  const [limitToMonth, setLimitToMonth] = useState(false)
+  const [limitedMonth, setLimitedMonth] = useState('')
   const [isCreatingTrip, setIsCreatingTrip] = useState(false)
   const [accessCodeInput, setAccessCodeInput] = useState('')
   const [accessError, setAccessError] = useState('')
   const [isVerifyingAccess, setIsVerifyingAccess] = useState(false)
   const [isAccessGranted, setIsAccessGranted] = useState(() => hasStoredAccessToken())
+
+  const currentDate = useMemo(() => new Date(), [])
+  const monthOptions = useMemo(() => {
+    return Array.from({ length: 12 }, (_, index) => {
+      const monthValue = String(index + 1).padStart(2, '0')
+      const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long' }).format(new Date(2000, index, 1))
+
+      return {
+        value: monthValue,
+        label: monthLabel,
+      }
+    })
+  }, [])
+  const yearOptions = useMemo(() => {
+    const currentYear = currentDate.getFullYear()
+
+    return Array.from({ length: 7 }, (_, index) => String(currentYear - 1 + index))
+  }, [currentDate])
+  const selectedLimitedYear = /^\d{4}-\d{2}$/.test(limitedMonth) ? limitedMonth.slice(0, 4) : ''
+  const selectedLimitedMonth = /^\d{4}-\d{2}$/.test(limitedMonth) ? limitedMonth.slice(5, 7) : ''
+
+  function updateLimitedMonth(nextYear, nextMonth) {
+    setLimitedMonth(formatMonthKey(nextYear, nextMonth))
+  }
 
   useEffect(() => {
     function onPopState() {
@@ -51,7 +86,7 @@ function App() {
 
   function navigate(path) {
     window.history.pushState({}, '', path)
-    setPathname(path)
+    setPathname(getPathname())
   }
 
   async function handleCreateTrip(event) {
@@ -61,6 +96,7 @@ function App() {
     const cleanParticipants = participants
       .map((name) => name.trim())
       .filter((name) => name.length > 0)
+    const monthQuery = limitToMonth && /^\d{4}-\d{2}$/.test(limitedMonth) ? limitedMonth : ''
 
     if (!trimmed || cleanParticipants.length === 0) {
       return
@@ -86,7 +122,14 @@ function App() {
       setTripName('')
       setParticipantName('')
       setParticipants([])
-      navigate(`/trip/${trip.id}`)
+      setLimitToMonth(false)
+      setLimitedMonth('')
+
+      const targetPath = monthQuery
+        ? `/trip/${trip.id}?month=${encodeURIComponent(monthQuery)}`
+        : `/trip/${trip.id}`
+
+      navigate(targetPath)
     } catch (error) {
       console.error(error)
 
@@ -219,12 +262,12 @@ function App() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
       <header className="mx-auto mb-8 flex w-full max-w-2xl items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-3 transition-colors duration-150">
-        <a href="/" className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-900">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-sm bg-orange-500 text-white">✈</span>
-          <span>{t('brand.name')}</span>
+        <a href="/" className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-slate-900">
+          <img src={brandIcon} alt="" className="h-8 w-8 rounded-lg border border-slate-400 bg-white object-contain" />
+          <span className="truncate">{t('brand.name')}</span>
         </a>
-        <span className="rounded-md bg-orange-500 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
-          {t('badge.mvp')}
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          Invite only
         </span>
       </header>
 
@@ -293,9 +336,90 @@ function App() {
           </div>
 
           <p className="text-xs text-slate-500">{t('landing.participantsHint')}</p>
+
+          <div className="mt-1 rounded-md border border-slate-300 bg-slate-50 p-3">
+            <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-800">
+              <input
+                type="checkbox"
+                checked={limitToMonth}
+                onChange={(event) => {
+                  const checked = event.target.checked
+                  setLimitToMonth(checked)
+
+                  if (checked) {
+                    const defaultMonth = formatMonthKey(
+                      String(currentDate.getFullYear()),
+                      String(currentDate.getMonth() + 1).padStart(2, '0'),
+                    )
+
+                    setLimitedMonth((current) => current || defaultMonth)
+                  } else {
+                    setLimitedMonth('')
+                  }
+                }}
+                className="h-4 w-4 rounded-[7px] border-slate-400 accent-orange-300 focus:ring-orange-300"
+              />
+              {t('landing.limitToMonthToggle')}
+            </label>
+
+            {limitToMonth && (
+              <div className="mt-3">
+                <label className="text-xs font-medium uppercase tracking-wide text-slate-600">
+                  {t('landing.limitToMonthLabel')}
+                </label>
+
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <select
+                      value={selectedLimitedMonth}
+                      onChange={(event) => updateLimitedMonth(selectedLimitedYear, event.target.value)}
+                      className="h-10 w-full appearance-none rounded-md border border-slate-400 bg-white pl-3 pr-10 text-sm font-medium text-slate-900 shadow-none outline-none transition-colors duration-150 focus:border-orange-500 focus:ring-0 focus:shadow-none"
+                      required={limitToMonth}
+                    >
+                      <option value="" disabled>Select month</option>
+                      {monthOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500">
+                      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4" aria-hidden="true">
+                        <path d="M6 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <select
+                      value={selectedLimitedYear}
+                      onChange={(event) => updateLimitedMonth(event.target.value, selectedLimitedMonth)}
+                      className="h-10 w-full appearance-none rounded-md border border-slate-400 bg-white pl-3 pr-10 text-sm font-medium text-slate-900 shadow-none outline-none transition-colors duration-150 focus:border-orange-500 focus:ring-0 focus:shadow-none"
+                      required={limitToMonth}
+                    >
+                      <option value="" disabled>Select year</option>
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500">
+                      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4" aria-hidden="true">
+                        <path d="M6 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <p className="mt-2 text-xs text-slate-600">{t('landing.limitToMonthHint')}</p>
+          </div>
+
           <button
             type="submit"
-            disabled={participants.length === 0 || isCreatingTrip}
+            disabled={participants.length === 0 || isCreatingTrip || (limitToMonth && !limitedMonth)}
             className="h-11 rounded-md bg-orange-500 px-4 text-sm font-semibold text-white transition duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-orange-300"
           >
             {isCreatingTrip ? 'Creating trip...' : t('landing.createTrip')}

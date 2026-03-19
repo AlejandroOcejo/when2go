@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import brandIcon from '../assets/svgS.svg'
 import AvailabilityCalendar from '../components/AvailabilityCalendar'
 import UserPicker from '../components/UserPicker'
 import { identifyAnalyticsUser, trackEvent } from '../lib/telemetry'
@@ -72,6 +73,11 @@ const AVAILABILITY_SYNC_INTERVAL_MS = getIntervalFromEnv(
   10000,
 )
 
+const AVAILABILITY_MIN_IDLE_MS = getIntervalFromEnv(
+  import.meta.env.VITE_AVAILABILITY_MIN_IDLE_MS,
+  1800,
+)
+
 const AVAILABILITY_POLL_INTERVAL_MS = getIntervalFromEnv(
   import.meta.env.VITE_AVAILABILITY_POLL_INTERVAL_MS,
   6000,
@@ -114,6 +120,12 @@ function withUserAvailabilityRows(rows, user, tripId, selectedDates) {
   return [...withoutUserRows, ...nextRows]
 }
 
+function getMonthFromSearch(search) {
+  const params = new URLSearchParams(search)
+  const month = String(params.get('month') ?? '').trim()
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : null
+}
+
 function TripPage({ tripId }) {
   const { t, i18n } = useTranslation()
   const [trip, setTrip] = useState(null)
@@ -131,10 +143,17 @@ function TripPage({ tripId }) {
   const pendingDatesRef = useRef([])
   const syncedDatesRef = useRef([])
   const isSyncingRef = useRef(false)
+  const lastSelectionAtRef = useRef(0)
 
   const selectedTripUser = useMemo(() => {
     return tripUsers.find((user) => user.id === selectedTripUserId) ?? null
   }, [tripUsers, selectedTripUserId])
+
+  const lockedMonth = getMonthFromSearch(window.location.search)
+  const shareLink = useMemo(() => {
+    const monthParam = lockedMonth ? `?month=${encodeURIComponent(lockedMonth)}` : ''
+    return `${window.location.origin}/trip/${tripId}${monthParam}`
+  }, [lockedMonth, tripId])
 
   const groupedAvailability = useMemo(() => {
     return groupAvailabilityByDate(availabilityRows)
@@ -315,6 +334,12 @@ function TripPage({ tripId }) {
         return
       }
 
+      const elapsedSinceLastSelection = Date.now() - lastSelectionAtRef.current
+
+      if (elapsedSinceLastSelection < AVAILABILITY_MIN_IDLE_MS) {
+        return
+      }
+
       const pendingDates = normalizeDateKeys(pendingDatesRef.current)
       const syncedDates = normalizeDateKeys(syncedDatesRef.current)
 
@@ -395,6 +420,7 @@ function TripPage({ tripId }) {
 
     setSelectedDates(normalizedDates)
     pendingDatesRef.current = normalizedDates
+    lastSelectionAtRef.current = Date.now()
 
     if (selectedTripUser) {
       setAvailabilityRows((currentRows) =>
@@ -410,8 +436,6 @@ function TripPage({ tripId }) {
   }
 
   async function handleCopyLink() {
-    const shareLink = `${window.location.origin}/trip/${tripId}`
-
     try {
       await navigator.clipboard.writeText(shareLink)
       setCopied(true)
@@ -469,9 +493,9 @@ function TripPage({ tripId }) {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
       <header className="mx-auto mb-8 flex w-full max-w-3xl items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-3 transition-colors duration-150">
-        <a href="/" className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-900">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-sm bg-orange-500 text-white">✈</span>
-          <span>{t('brand.name')}</span>
+        <a href="/" className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-slate-900">
+          <img src={brandIcon} alt="" className="h-8 w-8 rounded-lg border border-slate-400 bg-white object-contain" />
+          <span className="truncate">{t('brand.name')}</span>
         </a>
         <span className="rounded-md bg-orange-500 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
           {t('badge.liveTrip')}
@@ -531,7 +555,7 @@ function TripPage({ tripId }) {
             <div className="mt-3 flex gap-2">
               <input
                 readOnly
-                value={`${window.location.origin}/trip/${trip.id}`}
+                value={shareLink}
                 onFocus={(event) => event.target.select()}
                 className="h-10 flex-1 rounded-md border border-slate-400 bg-white px-3 text-sm text-slate-800"
                 aria-label={t('trip.shareInputAria')}
@@ -589,6 +613,7 @@ function TripPage({ tripId }) {
               selectedDates={selectedDates}
               groupedAvailability={groupedAvailability}
               totalUsers={tripUsers.length}
+              lockedMonth={lockedMonth}
               onChange={handleDatesChange}
             />  
           </div>

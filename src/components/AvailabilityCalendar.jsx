@@ -39,10 +39,20 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
 
-function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, onChange }) {
+function monthKeyToDate(monthKey) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(monthKey ?? ''))) {
+    return null
+  }
+
+  const [year, month] = monthKey.split('-').map(Number)
+  return new Date(year, month - 1, 1)
+}
+
+function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, lockedMonth, onChange }) {
   const { t } = useTranslation()
   const [mode, setMode] = useState('multiple')
   const [rangeDraft, setRangeDraft] = useState(undefined)
+  const fixedMonthDate = useMemo(() => monthKeyToDate(lockedMonth), [lockedMonth])
   const selectedCount = selectedDates.length
   const selectedDateObjects = selectedDates.map((date) => fromDateKey(date))
   const availabilityCountByDate = useMemo(() => {
@@ -53,7 +63,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
   }, [groupedAvailability])
 
   const dayButtonClasses =
-    'relative mx-auto inline-flex h-10 w-10 min-h-10 min-w-10 max-h-10 max-w-10 aspect-square box-border items-center justify-center rounded-md p-0 text-sm font-semibold text-slate-900 hover:bg-slate-100 active:scale-[0.98] transition-[background-color,transform,color] duration-150 ease-out'
+    'relative inline-flex h-10 w-10 min-h-10 min-w-10 max-h-10 max-w-10 aspect-square box-border items-center justify-center rounded-md p-0 text-sm font-semibold text-slate-900 hover:bg-slate-100 active:scale-[0.98] transition-[background-color,transform,color] duration-150 ease-out'
 
   const selectedOutlineClass =
     `bg-transparent text-slate-900 shadow-[inset_0_0_0_2px_${BRAND_ORANGE_DARK}]`
@@ -68,13 +78,19 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
     }
 
     const ratio = clamp(availableUsers / safeTotalUsers, 0, 1)
-    return ratio * 0.32
+
+    if (ratio >= 1) {
+      return 0.32
+    }
+
+    return Math.max(0.04, ratio * 0.2)
   }
 
   function CalendarDayButton(props) {
     const { day, modifiers, children, className, ...buttonProps } = props
     const dateKey = toDateKey(day.date)
     const availableUsers = availabilityCountByDate[dateKey] ?? 0
+    const isFullyMatched = safeTotalUsers > 0 && availableUsers === safeTotalUsers
     const opacity = getAvailabilityOpacity(dateKey)
 
     const heatmapStyle =
@@ -130,7 +146,14 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
         className={mergedClassName}
       >
         {availableUsers > 0 && (
-          <span className="pointer-events-none absolute -left-1 -top-1 rounded-sm border border-slate-300 bg-white px-0.5 text-[8px] font-medium leading-none text-slate-600">
+          <span
+            className={`pointer-events-none absolute -left-1 -top-1 rounded-sm border px-0.5 text-[8px] font-semibold leading-none shadow-sm transition-colors duration-150 ${
+              isFullyMatched
+                ? 'border-orange-700 bg-orange-600 text-white'
+                : 'border-slate-300 bg-white text-slate-600'
+            }`}
+            title={isFullyMatched ? t('groupAvailability.topMatch') : undefined}
+          >
             {availableUsers}/{safeTotalUsers}
           </span>
         )}
@@ -223,6 +246,12 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
         <DayPicker
           mode="multiple"
           animate
+          month={fixedMonthDate ?? undefined}
+          defaultMonth={fixedMonthDate ?? undefined}
+          fromMonth={fixedMonthDate ?? undefined}
+          toMonth={fixedMonthDate ?? undefined}
+          disableNavigation={Boolean(fixedMonthDate)}
+          hideNavigation={Boolean(fixedMonthDate)}
           selected={selectedDateObjects}
           onSelect={(nextDates) => {
             const next = (nextDates ?? []).map((date) => toDateKey(date))
@@ -237,17 +266,17 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
           classNames={{
             root: 'rdp-root w-full',
             months: 'flex flex-col',
-            month: 'w-full space-y-3',
+            month: 'mx-auto w-fit space-y-3',
             month_caption: 'relative flex items-center justify-center py-2',
             caption_label: 'pointer-events-none relative z-0 text-base font-semibold text-slate-900',
             nav: 'absolute inset-x-0 z-10 flex items-center justify-between px-12',
             button_previous: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150',
             button_next: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150',
             month_grid: 'w-full border-collapse',
-            weekdays: 'grid grid-cols-7',
+            weekdays: 'grid grid-cols-7 gap-1',
             weekday: 'py-1 text-center text-xs font-semibold text-slate-600',
-            week: 'grid grid-cols-7',
-            day: 'text-center p-[2px]',
+            week: 'grid grid-cols-7 gap-x-1 mb-[2px] last:mb-0',
+            day: 'flex items-center justify-center p-0',
             day_button: dayButtonClasses,
             selected: 'text-slate-900 font-semibold',
             today: 'text-slate-800',
@@ -258,6 +287,12 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
         <DayPicker
           mode="range"
           animate
+          month={fixedMonthDate ?? undefined}
+          defaultMonth={fixedMonthDate ?? undefined}
+          fromMonth={fixedMonthDate ?? undefined}
+          toMonth={fixedMonthDate ?? undefined}
+          disableNavigation={Boolean(fixedMonthDate)}
+          hideNavigation={Boolean(fixedMonthDate)}
           selected={rangeDraft}
           onSelect={(nextRange) => {
             setRangeDraft(nextRange)
@@ -290,17 +325,17 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
           classNames={{
             root: 'rdp-root w-full',
             months: 'flex flex-col',
-            month: 'w-full space-y-3',
+            month: 'mx-auto w-fit space-y-3',
             month_caption: 'relative flex items-center justify-center py-2',
             caption_label: 'pointer-events-none relative z-0 text-base font-semibold text-slate-900',
             nav: 'absolute inset-x-0 z-10 flex items-center justify-between px-12',
             button_previous: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150',
             button_next: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150',
             month_grid: 'w-full border-collapse',
-            weekdays: 'grid grid-cols-7',
+            weekdays: 'grid grid-cols-7 gap-1',
             weekday: 'py-1 text-center text-xs font-semibold text-slate-600',
-            week: 'grid grid-cols-7',
-            day: 'text-center p-[2px]',
+            week: 'grid grid-cols-7 gap-x-1 mb-[2px] last:mb-0',
+            day: 'flex items-center justify-center p-0',
             day_button: dayButtonClasses,
             selected: 'text-slate-900 font-semibold',
             range_start: 'text-slate-900 font-semibold',

@@ -24,6 +24,9 @@
     "add": "Add",
     "removeParticipant": "Remove {{name}}",
     "participantsHint": "Add at least one person before creating your shared trip page.",
+    "limitToMonthToggle": "Limit calendar to one month",
+    "limitToMonthLabel": "Month and year",
+    "limitToMonthHint": "When enabled, everyone opening the link will see only this month.",
     "createTrip": "Create trip"
   },
   "trip": {
