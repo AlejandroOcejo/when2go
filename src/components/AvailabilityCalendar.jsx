@@ -53,6 +53,21 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
   const [mode, setMode] = useState('multiple')
   const [rangeDraft, setRangeDraft] = useState(undefined)
   const fixedMonthDate = useMemo(() => monthKeyToDate(lockedMonth), [lockedMonth])
+  const today = useMemo(() => {
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    return now
+  }, [])
+  const currentMonthStart = useMemo(() => {
+    return new Date(today.getFullYear(), today.getMonth(), 1)
+  }, [today])
+  const effectiveFixedMonthDate = useMemo(() => {
+    if (!fixedMonthDate) {
+      return null
+    }
+
+    return fixedMonthDate >= currentMonthStart ? fixedMonthDate : null
+  }, [fixedMonthDate, currentMonthStart])
   const selectedCount = selectedDates.length
   const selectedDateObjects = selectedDates.map((date) => fromDateKey(date))
   const availabilityCountByDate = useMemo(() => {
@@ -63,7 +78,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
   }, [groupedAvailability])
 
   const dayButtonClasses =
-    'relative inline-flex h-10 w-10 min-h-10 min-w-10 max-h-10 max-w-10 aspect-square box-border items-center justify-center rounded-md p-0 text-sm font-semibold text-slate-900 hover:bg-slate-100 active:scale-[0.98] transition-[background-color,transform,color] duration-150 ease-out'
+    'relative inline-flex h-10 w-10 min-h-10 min-w-10 max-h-10 max-w-10 aspect-square box-border items-center justify-center rounded-md p-0 text-sm font-semibold text-slate-900 hover:bg-slate-100 active:scale-[0.98] transition-[background-color,transform,color] duration-150 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-300 disabled:opacity-60 disabled:active:scale-100'
 
   const selectedOutlineClass =
     `bg-transparent text-slate-900 shadow-[inset_0_0_0_2px_${BRAND_ORANGE_DARK}]`
@@ -164,6 +179,14 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
 
   function NavigationButton(props) {
     const { onPointerDown, ...buttonProps } = props
+    const ariaDisabled = buttonProps['aria-disabled']
+    const isDisabled = Boolean(buttonProps.disabled || ariaDisabled === true || ariaDisabled === 'true')
+    const ariaLabel = String(buttonProps['aria-label'] ?? '')
+    const isPreviousButton = /previous/i.test(ariaLabel)
+
+    if (isPreviousButton && isDisabled) {
+      return <span className="h-8 w-8" aria-hidden="true" />
+    }
 
     return (
       <button
@@ -246,12 +269,14 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
         <DayPicker
           mode="multiple"
           animate
-          month={fixedMonthDate ?? undefined}
-          defaultMonth={fixedMonthDate ?? undefined}
-          fromMonth={fixedMonthDate ?? undefined}
-          toMonth={fixedMonthDate ?? undefined}
-          disableNavigation={Boolean(fixedMonthDate)}
-          hideNavigation={Boolean(fixedMonthDate)}
+          month={effectiveFixedMonthDate ?? undefined}
+          defaultMonth={effectiveFixedMonthDate ?? currentMonthStart}
+          startMonth={currentMonthStart}
+          fromMonth={effectiveFixedMonthDate ?? currentMonthStart}
+          toMonth={effectiveFixedMonthDate ?? undefined}
+          disableNavigation={Boolean(effectiveFixedMonthDate)}
+          hideNavigation={Boolean(effectiveFixedMonthDate)}
+          disabled={{ before: today }}
           selected={selectedDateObjects}
           onSelect={(nextDates) => {
             const next = (nextDates ?? []).map((date) => toDateKey(date))
@@ -270,7 +295,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
             month_caption: 'relative flex items-center justify-center py-2',
             caption_label: 'pointer-events-none relative z-0 text-base font-semibold text-slate-900',
             nav: 'absolute inset-x-0 z-10 flex items-center justify-between px-12',
-            button_previous: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150',
+            button_previous: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150 disabled:pointer-events-none',
             button_next: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150',
             month_grid: 'w-full border-collapse',
             weekdays: 'grid grid-cols-7 gap-1',
@@ -279,6 +304,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
             day: 'flex items-center justify-center p-0',
             day_button: dayButtonClasses,
             selected: 'text-slate-900 font-semibold',
+            disabled: 'text-slate-300',
             today: 'text-slate-800',
             outside: 'text-slate-300',
           }}
@@ -287,12 +313,14 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
         <DayPicker
           mode="range"
           animate
-          month={fixedMonthDate ?? undefined}
-          defaultMonth={fixedMonthDate ?? undefined}
-          fromMonth={fixedMonthDate ?? undefined}
-          toMonth={fixedMonthDate ?? undefined}
-          disableNavigation={Boolean(fixedMonthDate)}
-          hideNavigation={Boolean(fixedMonthDate)}
+          month={effectiveFixedMonthDate ?? undefined}
+          defaultMonth={effectiveFixedMonthDate ?? currentMonthStart}
+          startMonth={currentMonthStart}
+          fromMonth={effectiveFixedMonthDate ?? currentMonthStart}
+          toMonth={effectiveFixedMonthDate ?? undefined}
+          disableNavigation={Boolean(effectiveFixedMonthDate)}
+          hideNavigation={Boolean(effectiveFixedMonthDate)}
+          disabled={{ before: today }}
           selected={rangeDraft}
           onSelect={(nextRange) => {
             setRangeDraft(nextRange)
@@ -329,7 +357,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
             month_caption: 'relative flex items-center justify-center py-2',
             caption_label: 'pointer-events-none relative z-0 text-base font-semibold text-slate-900',
             nav: 'absolute inset-x-0 z-10 flex items-center justify-between px-12',
-            button_previous: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150',
+            button_previous: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150 disabled:pointer-events-none',
             button_next: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150',
             month_grid: 'w-full border-collapse',
             weekdays: 'grid grid-cols-7 gap-1',
@@ -338,6 +366,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
             day: 'flex items-center justify-center p-0',
             day_button: dayButtonClasses,
             selected: 'text-slate-900 font-semibold',
+            disabled: 'text-slate-300',
             range_start: 'text-slate-900 font-semibold',
             range_middle: 'text-slate-900 font-semibold',
             range_end: 'text-slate-900 font-semibold',

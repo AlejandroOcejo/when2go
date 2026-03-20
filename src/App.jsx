@@ -10,6 +10,7 @@ import {
   storeAccessToken,
   verifyAccessCode,
 } from './lib/supabaseBackend'
+import { getTripIdFromPath, getTripPathById, saveTripMonthLock } from './lib/tripLink'
 import { getOrCreateAnonymousUser } from './lib/userIdentity'
 
 function getPathname() {
@@ -31,6 +32,7 @@ function App() {
   const [tripName, setTripName] = useState('')
   const [participantName, setParticipantName] = useState('')
   const [participants, setParticipants] = useState([])
+  const [recentlyAddedParticipant, setRecentlyAddedParticipant] = useState('')
   const [limitToMonth, setLimitToMonth] = useState(false)
   const [limitedMonth, setLimitedMonth] = useState('')
   const [isCreatingTrip, setIsCreatingTrip] = useState(false)
@@ -80,8 +82,7 @@ function App() {
   }, [viewer.id])
 
   const tripId = useMemo(() => {
-    const match = pathname.match(/^\/trip\/([^/]+)$/)
-    return match ? decodeURIComponent(match[1]) : null
+    return getTripIdFromPath(pathname)
   }, [pathname])
 
   function navigate(path) {
@@ -96,7 +97,7 @@ function App() {
     const cleanParticipants = participants
       .map((name) => name.trim())
       .filter((name) => name.length > 0)
-    const monthQuery = limitToMonth && /^\d{4}-\d{2}$/.test(limitedMonth) ? limitedMonth : ''
+    const monthLock = limitToMonth && /^\d{4}-\d{2}$/.test(limitedMonth) ? limitedMonth : ''
 
     if (!trimmed || cleanParticipants.length === 0) {
       return
@@ -125,9 +126,11 @@ function App() {
       setLimitToMonth(false)
       setLimitedMonth('')
 
-      const targetPath = monthQuery
-        ? `/trip/${trip.id}?month=${encodeURIComponent(monthQuery)}`
-        : `/trip/${trip.id}`
+      if (monthLock) {
+        saveTripMonthLock(trip.id, monthLock)
+      }
+
+      const targetPath = getTripPathById(trip.id)
 
       navigate(targetPath)
     } catch (error) {
@@ -159,6 +162,7 @@ function App() {
     }
 
     setParticipants((current) => [...current, trimmed])
+    setRecentlyAddedParticipant(trimmed)
     trackEvent('participant_added', {
       participant_count: participants.length + 1,
     })
@@ -261,6 +265,14 @@ function App() {
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
+      <style>
+        {`@keyframes participant-pop-in {
+          0% { opacity: 0; transform: translateY(4px) scale(0.94); }
+          65% { opacity: 1; transform: translateY(0) scale(1.03); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }`}
+      </style>
+
       <header className="mx-auto mb-8 flex w-full max-w-2xl items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-3 transition-colors duration-150">
         <a href="/" className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-slate-900">
           <img src={brandIcon} alt="" className="h-8 w-8 rounded-lg border border-slate-400 bg-white object-contain" />
@@ -320,7 +332,17 @@ function App() {
             {participants.map((name) => (
               <span
                 key={name}
-                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-800"
+                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-800 transition-transform duration-150"
+                style={
+                  recentlyAddedParticipant === name
+                    ? { animation: 'participant-pop-in 220ms cubic-bezier(0.2, 0.9, 0.2, 1)' }
+                    : undefined
+                }
+                onAnimationEnd={() => {
+                  if (recentlyAddedParticipant === name) {
+                    setRecentlyAddedParticipant('')
+                  }
+                }}
               >
                 {name}
                 <button
@@ -344,8 +366,6 @@ function App() {
                 checked={limitToMonth}
                 onChange={(event) => {
                   const checked = event.target.checked
-                  setLimitToMonth(checked)
-
                   if (checked) {
                     const defaultMonth = formatMonthKey(
                       String(currentDate.getFullYear()),
@@ -353,17 +373,21 @@ function App() {
                     )
 
                     setLimitedMonth((current) => current || defaultMonth)
-                  } else {
-                    setLimitedMonth('')
                   }
+
+                  setLimitToMonth(checked)
                 }}
-                className="h-4 w-4 rounded-[7px] border-slate-400 accent-orange-300 focus:ring-orange-300"
+                className="h-4 w-4 rounded-[7px] border-slate-400 accent-orange-300 transition-[transform,filter] duration-150 ease-out checked:scale-105 checked:brightness-95 focus:ring-orange-300"
               />
               {t('landing.limitToMonthToggle')}
             </label>
 
-            {limitToMonth && (
-              <div className="mt-3">
+            <div
+              className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin] duration-200 ease-out ${
+                limitToMonth ? 'mt-3 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0'
+              }`}
+            >
+              <div className="min-h-0">
                 <label className="text-xs font-medium uppercase tracking-wide text-slate-600">
                   {t('landing.limitToMonthLabel')}
                 </label>
@@ -374,6 +398,7 @@ function App() {
                       value={selectedLimitedMonth}
                       onChange={(event) => updateLimitedMonth(selectedLimitedYear, event.target.value)}
                       className="h-10 w-full appearance-none rounded-md border border-slate-400 bg-white pl-3 pr-10 text-sm font-medium text-slate-900 shadow-none outline-none transition-colors duration-150 focus:border-orange-500 focus:ring-0 focus:shadow-none"
+                      disabled={!limitToMonth}
                       required={limitToMonth}
                     >
                       <option value="" disabled>Select month</option>
@@ -395,6 +420,7 @@ function App() {
                       value={selectedLimitedYear}
                       onChange={(event) => updateLimitedMonth(event.target.value, selectedLimitedMonth)}
                       className="h-10 w-full appearance-none rounded-md border border-slate-400 bg-white pl-3 pr-10 text-sm font-medium text-slate-900 shadow-none outline-none transition-colors duration-150 focus:border-orange-500 focus:ring-0 focus:shadow-none"
+                      disabled={!limitToMonth}
                       required={limitToMonth}
                     >
                       <option value="" disabled>Select year</option>
@@ -412,7 +438,7 @@ function App() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             <p className="mt-2 text-xs text-slate-600">{t('landing.limitToMonthHint')}</p>
           </div>

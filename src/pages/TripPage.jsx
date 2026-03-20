@@ -16,6 +16,7 @@ import {
   getSelectedTripUser,
   saveSelectedTripUser,
 } from '../lib/userIdentity'
+import { getTripMonthLock, getTripPathById } from '../lib/tripLink'
 
 function groupAvailabilityByDate(availabilityRows) {
   return availabilityRows.reduce((accumulator, row) => {
@@ -149,11 +150,10 @@ function TripPage({ tripId }) {
     return tripUsers.find((user) => user.id === selectedTripUserId) ?? null
   }, [tripUsers, selectedTripUserId])
 
-  const lockedMonth = getMonthFromSearch(window.location.search)
+  const lockedMonth = getMonthFromSearch(window.location.search) ?? getTripMonthLock(tripId)
   const shareLink = useMemo(() => {
-    const monthParam = lockedMonth ? `?month=${encodeURIComponent(lockedMonth)}` : ''
-    return `${window.location.origin}/trip/${tripId}${monthParam}`
-  }, [lockedMonth, tripId])
+    return `${window.location.origin}${getTripPathById(tripId)}`
+  }, [tripId])
 
   const groupedAvailability = useMemo(() => {
     return groupAvailabilityByDate(availabilityRows)
