@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { DayPicker } from 'react-day-picker'
 import { useTranslation } from 'react-i18next'
 import { trackEvent } from '../lib/telemetry'
@@ -52,6 +52,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
   const { t } = useTranslation()
   const [mode, setMode] = useState('multiple')
   const [rangeDraft, setRangeDraft] = useState(undefined)
+  const [tapPulseKey, setTapPulseKey] = useState('')
   const fixedMonthDate = useMemo(() => monthKeyToDate(lockedMonth), [lockedMonth])
   const today = useMemo(() => {
     const now = new Date()
@@ -84,6 +85,18 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
     `bg-transparent text-slate-900 shadow-[inset_0_0_0_2px_${BRAND_ORANGE_DARK}]`
 
   const safeTotalUsers = Math.max(totalUsers || 0, 1)
+
+  useEffect(() => {
+    if (!tapPulseKey) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => setTapPulseKey(''), 260)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [tapPulseKey])
 
   function getAvailabilityOpacity(dateKey) {
     const availableUsers = availabilityCountByDate[dateKey] ?? 0
@@ -130,7 +143,9 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
       selectionClass = `${selectedOutlineClass} rounded-md`
     }
 
-    const mergedClassName = [className, selectionClass].filter(Boolean).join(' ')
+    const tapAnimationClass = tapPulseKey === dateKey ? 'animate-[day-tap-pop_240ms_cubic-bezier(0.2,0.9,0.3,1)]' : ''
+
+    const mergedClassName = [className, selectionClass, tapAnimationClass].filter(Boolean).join(' ')
 
     return (
       <button
@@ -141,6 +156,11 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
             mode,
             available_count: availableUsers,
             was_selected: isSelected,
+          })
+
+          setTapPulseKey('')
+          window.requestAnimationFrame(() => {
+            setTapPulseKey(dateKey)
           })
 
           if (buttonProps.onClick) {
@@ -214,6 +234,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
       @keyframes rdp-slide-out-to-left { from { opacity: 1; transform: translateX(0); } to { opacity: 0.15; transform: translateX(-100%); } }
       @keyframes rdp-slide-in-from-left { from { opacity: 0.15; transform: translateX(-100%); } to { opacity: 1; transform: translateX(0); } }
       @keyframes rdp-slide-out-to-right { from { opacity: 1; transform: translateX(0); } to { opacity: 0.15; transform: translateX(100%); } }
+      @keyframes day-tap-pop { 0% { transform: scale(0.9); } 45% { transform: scale(1.08); } 100% { transform: scale(1); } }
     .rdp-caption_after_enter, .rdp-weeks_after_enter { animation: rdp-slide-in-from-right 180ms ease-out both; }
     .rdp-caption_after_exit, .rdp-weeks_after_exit { animation: rdp-slide-out-to-right 180ms ease-in both; }
     .rdp-caption_before_enter, .rdp-weeks_before_enter { animation: rdp-slide-in-from-left 180ms ease-out both; }
@@ -237,15 +258,21 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
       </p>
 
       <div className="mt-6 flex w-full justify-center">
-        <div className="inline-flex rounded-md border border-slate-400 bg-white p-1">
+        <div className="relative inline-grid w-full max-w-[300px] grid-cols-2 rounded-md border border-slate-400 bg-white p-1">
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-sm bg-orange-500 transition-transform duration-250 ease-out ${
+              mode === 'range' ? 'translate-x-full' : 'translate-x-0'
+            }`}
+          />
           <button
             type="button"
             onClick={() => {
               setMode('multiple')
               setRangeDraft(undefined)
             }}
-            className={`h-8 rounded-sm px-3 text-xs font-semibold transition duration-150 ${
-              mode === 'multiple' ? 'bg-orange-500 text-white' : 'text-slate-700 hover:bg-slate-100'
+            className={`relative z-10 h-8 rounded-sm px-3 text-xs font-semibold transition-colors duration-200 ${
+              mode === 'multiple' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
             }`}
           >
             {t('calendar.multipleDates')}
@@ -256,8 +283,8 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
               setMode('range')
               setRangeDraft(undefined)
             }}
-            className={`h-8 rounded-sm px-3 text-xs font-semibold transition duration-150 ${
-              mode === 'range' ? 'bg-orange-500 text-white' : 'text-slate-700 hover:bg-slate-100'
+            className={`relative z-10 h-8 rounded-sm px-3 text-xs font-semibold transition-colors duration-200 ${
+              mode === 'range' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
             }`}
           >
             {t('calendar.dateRange')}
