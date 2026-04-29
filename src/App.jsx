@@ -4,13 +4,22 @@ import TripPage from './pages/TripPage'
 import brandIcon from './assets/svgS.svg'
 import { initAnalytics, trackEvent } from './lib/telemetry'
 import {
+  consumeTripAccessToken,
   clearAccessToken,
   createTrip,
+  getSessionStatus,
   hasStoredAccessToken,
   storeAccessToken,
   verifyAccessCode,
 } from './lib/supabaseBackend'
-import { getTripIdFromPath, getTripPathById, saveTripMonthLock } from './lib/tripLink'
+import {
+  clearAccessTokenFromCurrentUrl,
+  getAccessTokenFromSearch,
+  getRecentTrips,
+  getTripIdFromPath,
+  getTripPathById,
+  saveTripMonthLock,
+} from './lib/tripLink'
 import { getOrCreateAnonymousUser } from './lib/userIdentity'
 
 function getPathname() {
@@ -40,6 +49,8 @@ function App() {
   const [accessError, setAccessError] = useState('')
   const [isVerifyingAccess, setIsVerifyingAccess] = useState(false)
   const [isAccessGranted, setIsAccessGranted] = useState(() => hasStoredAccessToken())
+  const [isBootstrappingAccess, setIsBootstrappingAccess] = useState(true)
+  const [recentTrips, setRecentTrips] = useState(() => getRecentTrips())
 
   const currentDate = useMemo(() => new Date(), [])
   const monthOptions = useMemo(() => {
@@ -84,6 +95,50 @@ function App() {
   const tripId = useMemo(() => {
     return getTripIdFromPath(pathname)
   }, [pathname])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function bootstrapAccessState() {
+      setIsBootstrappingAccess(true)
+
+      try {
+        if (tripId) {
+          const accessToken = getAccessTokenFromSearch(window.location.search)
+
+          if (accessToken) {
+            const granted = await consumeTripAccessToken(tripId, accessToken)
+
+            if (!cancelled && granted) {
+              setIsAccessGranted(true)
+              clearAccessTokenFromCurrentUrl()
+            }
+          }
+        }
+
+        const active = await getSessionStatus()
+
+        if (!cancelled) {
+          setIsAccessGranted(active)
+          setRecentTrips(getRecentTrips())
+        }
+      } catch {
+        if (!cancelled) {
+          setIsAccessGranted(false)
+        }
+      } finally {
+        if (!cancelled) {
+          setIsBootstrappingAccess(false)
+        }
+      }
+    }
+
+    bootstrapAccessState()
+
+    return () => {
+      cancelled = true
+    }
+  }, [tripId, pathname])
 
   function navigate(path) {
     window.history.pushState({}, '', path)
@@ -133,11 +188,12 @@ function App() {
       const targetPath = getTripPathById(trip.id)
 
       navigate(targetPath)
+      setRecentTrips(getRecentTrips())
     } catch (error) {
       console.error(error)
 
       if (String(error?.message ?? '').includes('invalid_session')) {
-        clearAccessToken()
+        await clearAccessToken()
         setIsAccessGranted(false)
       }
 
@@ -210,12 +266,31 @@ function App() {
       setIsAccessGranted(true)
       setAccessError('')
       setAccessCodeInput('')
+      setRecentTrips(getRecentTrips())
     } catch (error) {
       console.error(error)
       setAccessError('Unable to verify passcode right now. Please try again.')
     } finally {
       setIsVerifyingAccess(false)
     }
+  }
+
+  function handleOpenRecentTrip(path) {
+    if (!path) {
+      return
+    }
+
+    navigate(path)
+  }
+
+  if (isBootstrappingAccess) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
+        <section className="mx-auto max-w-md rounded-xl border border-slate-300 bg-white p-7 sm:p-8">
+          <p className="text-sm font-medium text-slate-700">{t('access.checking')}</p>
+        </section>
+      </main>
+    )
   }
 
   if (!isAccessGranted) {
@@ -452,6 +527,25 @@ function App() {
           </button>
         </form>
       </section>
+
+      {recentTrips.length > 0 && (
+        <section className="mx-auto mt-5 max-w-2xl rounded-xl border border-slate-300 bg-white p-5 sm:p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">{t('landing.recentTripsTitle')}</h2>
+          <div className="mt-3 space-y-2">
+            {recentTrips.map((recentTrip) => (
+              <button
+                key={recentTrip.id}
+                type="button"
+                onClick={() => handleOpenRecentTrip(recentTrip.path)}
+                className="flex w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-left transition duration-150 hover:bg-slate-50"
+              >
+                <span className="truncate text-sm font-medium text-slate-900">{recentTrip.name}</span>
+                <span className="ml-3 text-xs text-slate-500">{t('landing.openRecent')}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <footer className="mx-auto mt-8 max-w-2xl pb-2 text-center text-xs text-slate-600">
         <p>{t('footer.tagline')}</p>

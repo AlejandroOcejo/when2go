@@ -27,7 +27,12 @@
     "limitToMonthToggle": "Limit calendar to one month",
     "limitToMonthLabel": "Month and year",
     "limitToMonthHint": "When enabled, everyone opening the link will see only this month.",
-    "createTrip": "Create trip"
+    "createTrip": "Create trip",
+    "recentTripsTitle": "Recent trips",
+    "openRecent": "Open"
+  },
+  "access": {
+    "checking": "Checking access..."
   },
   "trip": {
     "loading": "Loading trip...",
