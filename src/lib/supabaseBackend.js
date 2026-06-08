@@ -182,21 +182,6 @@ export async function getTripUsers(tripId) {
   }))
 }
 
-export async function upsertUser(user) {
-  const userId = user?.id
-  const userName = user?.name
-
-  if (!userId || !userName) {
-    throw new Error('Failed to upsert user: id and name are required')
-  }
-
-  return {
-    id: userId,
-    name: userName,
-    color: user?.color ?? '#5f6f52',
-  }
-}
-
 export async function replaceAvailability(tripId, userId, dates) {
   const uniqueDates = [...new Set((dates ?? []).map((date) => normalizeDate(date)))]
 
