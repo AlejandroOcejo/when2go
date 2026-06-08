@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import brandIcon from '../assets/svgS.svg'
+import AppFooter from '../components/AppFooter'
 import AvailabilityCalendar from '../components/AvailabilityCalendar'
+import GroupAvailabilityList from '../components/GroupAvailabilityList'
+import ShareCard from '../components/ShareCard'
+import TripLoadingSkeleton from '../components/TripLoadingSkeleton'
 import UserPicker from '../components/UserPicker'
 import { identifyAnalyticsUser, trackEvent } from '../lib/telemetry'
 import {
@@ -9,6 +13,7 @@ import {
   getTripAvailability,
   getTripUsers,
   getUserAvailability,
+  issueTripShareToken,
   replaceAvailability,
 } from '../lib/supabaseBackend'
 import {
@@ -16,7 +21,12 @@ import {
   getSelectedTripUser,
   saveSelectedTripUser,
 } from '../lib/userIdentity'
-import { getTripMonthLock, getTripPathById } from '../lib/tripLink'
+import {
+  buildTripSharePath,
+  getTripMonthLock,
+  getTripPathById,
+  saveRecentTrip,
+} from '../lib/tripLink'
 
 function groupAvailabilityByDate(availabilityRows) {
   return availabilityRows.reduce((accumulator, row) => {
@@ -32,31 +42,6 @@ function groupAvailabilityByDate(availabilityRows) {
 
     return accumulator
   }, {})
-}
-
-function byPopularityThenDate([leftDate, leftUsers], [rightDate, rightUsers]) {
-  const countDifference = rightUsers.length - leftUsers.length
-
-  if (countDifference !== 0) {
-    return countDifference
-  }
-
-  return leftDate.localeCompare(rightDate)
-}
-
-function parseDateKey(dateKey) {
-  const [year, month, day] = dateKey.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
-
-function formatDate(dateKey, locale) {
-  const date = parseDateKey(dateKey)
-
-  return new Intl.DateTimeFormat(locale, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
 }
 
 function getIntervalFromEnv(value, fallbackMs) {
@@ -85,8 +70,8 @@ const AVAILABILITY_POLL_INTERVAL_MS = getIntervalFromEnv(
 )
 
 function normalizeDateKeys(dateKeys) {
-  return [...new Set((dateKeys ?? []).map((dateKey) => String(dateKey)))].sort((left, right) =>
-    left.localeCompare(right),
+  return [...new Set((dateKeys ?? []).map((dateKey) => String(dateKey)))].sort(
+    (left, right) => left.localeCompare(right),
   )
 }
 
@@ -128,19 +113,19 @@ function getMonthFromSearch(search) {
 }
 
 function TripPage({ tripId }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [trip, setTrip] = useState(null)
   const [loading, setLoading] = useState(true)
   const [missingTrip, setMissingTrip] = useState(false)
   const [loadError, setLoadError] = useState('')
-  const [shareCardOpen, setShareCardOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [showLessPopularDates, setShowLessPopularDates] = useState(false)
   const [viewer] = useState(() => getOrCreateAnonymousUser())
   const [tripUsers, setTripUsers] = useState([])
   const [selectedTripUserId, setSelectedTripUserId] = useState(() => getSelectedTripUser(tripId))
   const [selectedDates, setSelectedDates] = useState([])
   const [availabilityRows, setAvailabilityRows] = useState([])
+  const [shareLink, setShareLink] = useState(
+    () => `${window.location.origin}${getTripPathById(tripId)}`,
+  )
   const pendingDatesRef = useRef([])
   const syncedDatesRef = useRef([])
   const isSyncingRef = useRef(false)
@@ -151,54 +136,53 @@ function TripPage({ tripId }) {
   }, [tripUsers, selectedTripUserId])
 
   const lockedMonth = getMonthFromSearch(window.location.search) ?? getTripMonthLock(tripId)
-  const shareLink = useMemo(() => {
-    return `${window.location.origin}${getTripPathById(tripId)}`
-  }, [tripId])
 
   const groupedAvailability = useMemo(() => {
     return groupAvailabilityByDate(availabilityRows)
   }, [availabilityRows])
-
-  const maxAvailabilityCount = useMemo(() => {
-    return Object.values(groupedAvailability).reduce((highest, users) => {
-      return Math.max(highest, users.length)
-    }, 0)
-  }, [groupedAvailability])
-
-  const sortedAvailabilityEntries = useMemo(() => {
-    return Object.entries(groupedAvailability).sort(byPopularityThenDate)
-  }, [groupedAvailability])
-
-  const lessPopularDatesCount = useMemo(() => {
-    if (maxAvailabilityCount <= 0) {
-      return 0
-    }
-
-    return sortedAvailabilityEntries.filter(([, users]) => users.length < maxAvailabilityCount).length
-  }, [maxAvailabilityCount, sortedAvailabilityEntries])
-
-  const visibleAvailabilityEntries = useMemo(() => {
-    if (showLessPopularDates || maxAvailabilityCount <= 0) {
-      return sortedAvailabilityEntries
-    }
-
-    return sortedAvailabilityEntries.filter(([, users]) => users.length === maxAvailabilityCount)
-  }, [maxAvailabilityCount, showLessPopularDates, sortedAvailabilityEntries])
 
   useEffect(() => {
     identifyAnalyticsUser(viewer.id)
   }, [viewer.id])
 
   useEffect(() => {
-    if (!trip) {
-      return
-    }
+    if (!trip) return
+
+    saveRecentTrip({
+      id: trip.id,
+      name: trip.name,
+      path: getTripPathById(trip.id),
+    })
 
     trackEvent('trip_viewed', {
       trip_id: trip.id,
       participant_count: tripUsers.length,
     })
   }, [trip, tripUsers.length])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function refreshShareLink() {
+      try {
+        const accessToken = await issueTripShareToken(tripId)
+
+        if (!cancelled && accessToken) {
+          setShareLink(`${window.location.origin}${buildTripSharePath(tripId, accessToken)}`)
+        }
+      } catch {
+        if (!cancelled) {
+          setShareLink(`${window.location.origin}${getTripPathById(tripId)}`)
+        }
+      }
+    }
+
+    refreshShareLink()
+
+    return () => {
+      cancelled = true
+    }
+  }, [tripId])
 
   useEffect(() => {
     let cancelled = false
@@ -222,17 +206,11 @@ function TripPage({ tripId }) {
 
         const users = await getTripUsers(tripId)
 
-        if (cancelled) {
-          return
-        }
+        if (cancelled) return
 
         setTrip(foundTrip)
         setTripUsers(users)
         setMissingTrip(false)
-
-        if (!users.some((user) => user.id === selectedTripUserId)) {
-          setSelectedTripUserId(null)
-        }
       } catch (error) {
         console.error(error)
 
@@ -254,12 +232,17 @@ function TripPage({ tripId }) {
     return () => {
       cancelled = true
     }
-  }, [tripId, selectedTripUserId])
+  }, [tripId])
+
+  // Reset selected user if they're no longer in the trip's participant list.
+  useEffect(() => {
+    if (selectedTripUserId && tripUsers.length > 0 && !tripUsers.some((u) => u.id === selectedTripUserId)) {
+      setSelectedTripUserId(null)
+    }
+  }, [tripUsers, selectedTripUserId])
 
   useEffect(() => {
-    if (!tripId || !selectedTripUserId) {
-      return
-    }
+    if (!tripId || !selectedTripUserId) return
 
     let cancelled = false
 
@@ -269,7 +252,6 @@ function TripPage({ tripId }) {
 
         if (!cancelled) {
           const normalizedDates = normalizeDateKeys(ownDates)
-
           setSelectedDates(normalizedDates)
           pendingDatesRef.current = normalizedDates
           syncedDatesRef.current = normalizedDates
@@ -287,9 +269,7 @@ function TripPage({ tripId }) {
   }, [tripId, selectedTripUserId])
 
   useEffect(() => {
-    if (!tripId) {
-      return
-    }
+    if (!tripId) return
 
     let cancelled = false
 
@@ -298,7 +278,10 @@ function TripPage({ tripId }) {
         let rows = await getTripAvailability(tripId)
 
         if (selectedTripUser) {
-          const hasPendingChanges = !areDateKeysEqual(pendingDatesRef.current, syncedDatesRef.current)
+          const hasPendingChanges = !areDateKeysEqual(
+            pendingDatesRef.current,
+            syncedDatesRef.current,
+          )
 
           if (hasPendingChanges) {
             rows = withUserAvailabilityRows(rows, selectedTripUser, tripId, pendingDatesRef.current)
@@ -323,38 +306,28 @@ function TripPage({ tripId }) {
   }, [tripId, selectedTripUser])
 
   useEffect(() => {
-    if (!tripId || !selectedTripUser) {
-      return
-    }
+    if (!tripId || !selectedTripUser) return
 
     let cancelled = false
 
     async function flushPendingAvailability() {
-      if (isSyncingRef.current) {
-        return
-      }
+      if (isSyncingRef.current) return
 
       const elapsedSinceLastSelection = Date.now() - lastSelectionAtRef.current
 
-      if (elapsedSinceLastSelection < AVAILABILITY_MIN_IDLE_MS) {
-        return
-      }
+      if (elapsedSinceLastSelection < AVAILABILITY_MIN_IDLE_MS) return
 
       const pendingDates = normalizeDateKeys(pendingDatesRef.current)
       const syncedDates = normalizeDateKeys(syncedDatesRef.current)
 
-      if (areDateKeysEqual(pendingDates, syncedDates)) {
-        return
-      }
+      if (areDateKeysEqual(pendingDates, syncedDates)) return
 
       isSyncingRef.current = true
 
       try {
         await replaceAvailability(tripId, selectedTripUser.id, pendingDates)
 
-        if (cancelled) {
-          return
-        }
+        if (cancelled) return
 
         syncedDatesRef.current = pendingDates
         const rows = await getTripAvailability(tripId)
@@ -377,7 +350,7 @@ function TripPage({ tripId }) {
     }
   }, [tripId, selectedTripUser])
 
-  async function handleUserSelect(userId) {
+  async function flushAndSetUser(userId) {
     if (selectedTripUser && !areDateKeysEqual(pendingDatesRef.current, syncedDatesRef.current)) {
       try {
         const pendingDates = normalizeDateKeys(pendingDatesRef.current)
@@ -390,29 +363,19 @@ function TripPage({ tripId }) {
 
     setSelectedTripUserId(userId)
     saveSelectedTripUser(tripId, userId)
-    trackEvent('trip_user_selected', {
-      trip_id: tripId,
-    })
+  }
+
+  async function handleUserSelect(userId) {
+    await flushAndSetUser(userId)
+    trackEvent('trip_user_selected', { trip_id: tripId })
   }
 
   async function handleClearSelectedUser() {
-    if (selectedTripUser && !areDateKeysEqual(pendingDatesRef.current, syncedDatesRef.current)) {
-      try {
-        const pendingDates = normalizeDateKeys(pendingDatesRef.current)
-        await replaceAvailability(tripId, selectedTripUser.id, pendingDates)
-        syncedDatesRef.current = pendingDates
-      } catch (error) {
-        console.error(error)
-      }
-    }
-
-    setSelectedTripUserId(null)
+    await flushAndSetUser(null)
   }
 
   function handleDatesChange(nextDates) {
-    if (!selectedTripUserId) {
-      return
-    }
+    if (!selectedTripUserId) return
 
     const normalizedDates = normalizeDateKeys(nextDates)
     const previousCount = selectedDates.length
@@ -435,62 +398,8 @@ function TripPage({ tripId }) {
     })
   }
 
-  async function handleCopyLink() {
-    try {
-      await navigator.clipboard.writeText(shareLink)
-      setCopied(true)
-      trackEvent('trip_link_copied', {
-        trip_id: tripId,
-      })
-      window.setTimeout(() => setCopied(false), 1400)
-    } catch {
-      setCopied(false)
-    }
-  }
-
   if (loading) {
-    return (
-      <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
-        <header className="mx-auto mb-5 flex w-full max-w-3xl items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-3">
-          <div className="inline-flex items-center gap-2 text-sm font-semibold tracking-tight text-slate-900">
-            <img src={brandIcon} alt="" className="h-8 w-8 rounded-lg border border-slate-400 bg-white object-contain" />
-            <span>{t('brand.name')}</span>
-          </div>
-          <span className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-500" aria-hidden="true" />
-            {t('trip.loading')}
-          </span>
-        </header>
-
-        <section className="mx-auto max-w-3xl rounded-xl border border-slate-300 bg-white p-6 sm:p-7">
-          <div className="h-7 w-2/3 animate-pulse rounded-md bg-slate-200" />
-          <div className="mt-3 h-4 w-full animate-pulse rounded bg-slate-200" />
-          <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-slate-200" />
-          <div className="mt-5 inline-flex items-center gap-2 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-500" aria-hidden="true" />
-            {t('trip.loading')}
-          </div>
-        </section>
-
-        <section className="mx-auto mt-5 max-w-3xl rounded-xl border border-slate-300 bg-white p-6 sm:p-7">
-          <div className="h-5 w-40 animate-pulse rounded bg-slate-200" />
-          <div className="mt-4 grid grid-cols-7 gap-1">
-            {Array.from({ length: 35 }).map((_, index) => (
-              <div key={index} className="aspect-square w-full max-w-10 justify-self-center animate-pulse rounded-md bg-slate-100" />
-            ))}
-          </div>
-        </section>
-
-        <section className="mx-auto mt-5 max-w-3xl rounded-xl border border-slate-300 bg-white p-6 sm:p-7">
-          <div className="h-5 w-52 animate-pulse rounded bg-slate-200" />
-          <div className="mt-4 space-y-2">
-            <div className="h-12 animate-pulse rounded-lg bg-slate-100" />
-            <div className="h-12 animate-pulse rounded-lg bg-slate-100" />
-            <div className="h-12 animate-pulse rounded-lg bg-slate-100" />
-          </div>
-        </section>
-      </main>
-    )
+    return <TripLoadingSkeleton />
   }
 
   if (missingTrip || !trip) {
@@ -530,7 +439,10 @@ function TripPage({ tripId }) {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
       <header className="mx-auto mb-8 flex w-full max-w-3xl items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-3 transition-colors duration-150">
-        <a href="/" className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-slate-900">
+        <a
+          href="/"
+          className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-slate-900"
+        >
           <img src={brandIcon} alt="" className="h-8 w-8 rounded-lg border border-slate-400 bg-white object-contain" />
           <span className="truncate">{t('brand.name')}</span>
         </a>
@@ -539,91 +451,14 @@ function TripPage({ tripId }) {
         </span>
       </header>
 
-      <section className="mx-auto max-w-3xl rounded-xl border border-slate-300 bg-white p-6 sm:p-7">
-        <div className="flex items-center gap-2">
-          <h1 className="min-w-0 flex-1 truncate text-2xl font-extrabold leading-tight tracking-tight text-slate-950 sm:text-3xl">
-            {trip.name}
-          </h1>
-
-          <div
-            className={`overflow-hidden transition-[max-width,opacity,transform] duration-200 ease-out ${
-              shareCardOpen
-                ? 'pointer-events-none max-w-0 -translate-y-1 opacity-0'
-                : 'max-w-[180px] translate-y-0 opacity-100'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={handleCopyLink}
-              className="h-10 rounded-md bg-orange-500 px-3 text-sm font-semibold text-white transition duration-150 hover:bg-orange-600 active:scale-[0.99]"
-            >
-              {copied ? t('trip.copied') : t('trip.copyLink')}
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShareCardOpen((current) => !current)}
-            aria-label={shareCardOpen ? t('trip.collapseCard') : t('trip.expandCard')}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-400 text-slate-700 transition duration-150 hover:bg-slate-100"
-          >
-            <svg
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`h-4 w-4 transition duration-200 ${shareCardOpen ? 'rotate-180' : ''}`}
-              aria-hidden="true"
-            >
-              <path d="M5 8l5 5 5-5" />
-            </svg>
-          </button>
-        </div>
-
-        <div
-          className={`grid overflow-hidden transition-[grid-template-rows,opacity,margin] duration-200 ease-out ${
-            shareCardOpen ? 'mt-4 grid-rows-[1fr] opacity-100' : 'mt-0 grid-rows-[0fr] opacity-0'
-          }`}
-        >
-          <div className="min-h-0">
-            <p className="mt-4 text-sm leading-relaxed text-slate-600">{t('trip.shareSubtitle')}</p>
-            <div className="mt-3 flex gap-2">
-              <input
-                readOnly
-                value={shareLink}
-                onFocus={(event) => event.target.select()}
-                className="h-10 flex-1 rounded-md border border-slate-400 bg-white px-3 text-sm text-slate-800"
-                aria-label={t('trip.shareInputAria')}
-              />
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                className={`h-10 rounded-md bg-orange-500 px-3 text-sm font-semibold text-white transition-[background-color,transform,opacity] duration-200 ease-out hover:bg-orange-600 active:scale-[0.99] ${
-                  shareCardOpen
-                    ? 'translate-y-0 opacity-100'
-                    : 'pointer-events-none -translate-y-1 opacity-0'
-                }`}
-              >
-                {copied ? t('trip.copied') : t('trip.copyLink')}
-              </button>
-            </div>
-            <p className={`mt-2 text-xs transition duration-150 ${copied ? 'text-emerald-700' : 'text-slate-500'}`}>
-              {copied ? t('trip.copiedHint') : t('trip.shareHint')}
-            </p>
-          </div>
-        </div>
-      </section>
+      <ShareCard tripId={tripId} tripName={trip.name} shareLink={shareLink} />
 
       {!selectedTripUser ? (
         <div className="mx-auto mt-5 max-w-3xl">
           {tripUsers.length === 0 ? (
             <section className="rounded-xl border border-slate-300 bg-white p-6 sm:p-7">
               <h2 className="text-xl font-semibold text-slate-900">{t('trip.noParticipantsTitle')}</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                {t('trip.noParticipantsBody')}
-              </p>
+              <p className="mt-1 text-sm text-slate-600">{t('trip.noParticipantsBody')}</p>
             </section>
           ) : (
             <UserPicker users={tripUsers} onSelect={handleUserSelect} />
@@ -632,7 +467,9 @@ function TripPage({ tripId }) {
       ) : (
         <>
           <section className="mx-auto mt-5 flex max-w-3xl items-center gap-3 rounded-xl border border-slate-300 bg-white p-4">
-            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('trip.youAre')}</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              {t('trip.youAre')}
+            </span>
             <div className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-slate-100 px-3 py-1 text-sm text-slate-900">
               <strong>{selectedTripUser.name}</strong>
             </div>
@@ -652,82 +489,14 @@ function TripPage({ tripId }) {
               totalUsers={tripUsers.length}
               lockedMonth={lockedMonth}
               onChange={handleDatesChange}
-            />  
+            />
           </div>
 
-          <section className="mx-auto mt-5 max-w-3xl rounded-xl border border-slate-300 bg-white p-6 sm:p-7">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">{t('groupAvailability.title')}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">{t('groupAvailability.subtitle')}</p>
-
-            {lessPopularDatesCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowLessPopularDates((current) => !current)}
-                className="mt-4 rounded-md border border-slate-400 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition duration-150 hover:bg-slate-100"
-              >
-                {showLessPopularDates
-                  ? 'Hide less popular dates'
-                  : `Show ${lessPopularDatesCount} less popular date${lessPopularDatesCount === 1 ? '' : 's'}`}
-              </button>
-            )}
-
-            <ul className="mt-4 space-y-3">
-              {sortedAvailabilityEntries.length === 0 && (
-                <li className="rounded-md border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-                  {t('groupAvailability.empty')}
-                </li>
-              )}
-              {visibleAvailabilityEntries.map(([dateKey, users]) => (
-                <li
-                  key={dateKey}
-                  className={`rounded-xl border p-3 transition duration-200 ${
-                    maxAvailabilityCount > 0 && users.length === maxAvailabilityCount
-                      ? 'border-orange-500 bg-white'
-                      : 'border-slate-300 bg-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <strong className="text-slate-900">{formatDate(dateKey, i18n.language)}</strong>
-                    <div className="flex items-center gap-2">
-                      {maxAvailabilityCount > 0 && users.length === maxAvailabilityCount && (
-                        <span className="rounded-md border border-orange-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-700">
-                          {t('groupAvailability.topMatch')}
-                        </span>
-                      )}
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                        {t('groupAvailability.available', { count: users.length })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {users.map((user) => (
-                      <span
-                        key={`${dateKey}-${user.userId}`}
-                        className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
-                      >
-                        {user.name}
-                      </span>
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
+          <GroupAvailabilityList availabilityRows={availabilityRows} totalUsers={tripUsers.length} />
         </>
       )}
 
-      <footer className="mx-auto mt-8 max-w-3xl pb-2 text-center text-xs text-slate-600">
-        <p>{t('footer.tagline')}</p>
-        <nav className="mt-2 flex items-center justify-center gap-3 text-slate-600">
-          <a href="/about" className="transition duration-150 hover:text-slate-900">{t('footer.about')}</a>
-          <span aria-hidden="true">•</span>
-          <a href="/contact" className="transition duration-150 hover:text-slate-900">{t('footer.contact')}</a>
-          <span aria-hidden="true">•</span>
-          <a href="/privacy" className="transition duration-150 hover:text-slate-900">{t('footer.privacy')}</a>
-          <span aria-hidden="true">•</span>
-          <a href="/terms" className="transition duration-150 hover:text-slate-900">{t('footer.terms')}</a>
-        </nav>
-      </footer>
+      <AppFooter />
     </main>
   )
 }

@@ -1,83 +1,35 @@
-import { createClient } from '@supabase/supabase-js'
+const SESSION_HINT_STORAGE_KEY = 'travel-group-session-active'
 
-const USER_COLORS = ['#0f766e', '#16a34a', '#b45309', '#be123c', '#0369a1', '#7c3aed']
-const ACCESS_TOKEN_SESSION_KEY = 'travel-group-access-token'
+async function apiPost(path, payload) {
+  const response = await fetch(path, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload ?? {}),
+  })
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const body = await response.json().catch(() => ({}))
 
-const supabase =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey)
-    : null
-
-function requireSupabase() {
-  if (!supabase) {
-    throw new Error(
-      'Missing Supabase config. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.',
-    )
+  if (!response.ok) {
+    const details = String(body?.error ?? '').trim()
+    throw new Error(details || `Request failed with status ${response.status}`)
   }
 
-  return supabase
+  return body
 }
 
-function throwIfError(error, context) {
-  if (!error) {
-    return
-  }
-
-  throw new Error(`${context}: ${error.message}`)
-}
-
-function getStoredAccessToken() {
+function setSessionHint(active) {
   try {
-    const token = window.sessionStorage.getItem(ACCESS_TOKEN_SESSION_KEY)
-    return token ? token.trim() : ''
-  } catch {
-    return ''
-  }
-}
-
-function requireAccessToken() {
-  const token = getStoredAccessToken()
-
-  if (!token) {
-    throw new Error('Missing access session. Please enter the passcode again.')
-  }
-
-  return token
-}
-
-export function hasStoredAccessToken() {
-  return Boolean(getStoredAccessToken())
-}
-
-export function storeAccessToken(token) {
-  try {
-    window.sessionStorage.setItem(ACCESS_TOKEN_SESSION_KEY, token)
+    if (active) {
+      window.localStorage.setItem(SESSION_HINT_STORAGE_KEY, '1')
+    } else {
+      window.localStorage.removeItem(SESSION_HINT_STORAGE_KEY)
+    }
   } catch {
     // Ignore storage failures.
   }
-}
-
-export function clearAccessToken() {
-  try {
-    window.sessionStorage.removeItem(ACCESS_TOKEN_SESSION_KEY)
-  } catch {
-    // Ignore storage failures.
-  }
-}
-
-function pickColor(id) {
-  let hash = 0
-
-  for (let index = 0; index < id.length; index += 1) {
-    hash = (hash << 5) - hash + id.charCodeAt(index)
-    hash |= 0
-  }
-
-  const safeIndex = Math.abs(hash) % USER_COLORS.length
-  return USER_COLORS[safeIndex]
 }
 
 function normalizeParticipantNames(names) {
@@ -105,67 +57,6 @@ function normalizeParticipantNames(names) {
   return deduped
 }
 
-export async function createTrip(name, participantNames = []) {
-  const client = requireSupabase()
-  const sessionToken = requireAccessToken()
-
-  const participants = normalizeParticipantNames(participantNames)
-  const { data, error } = await client.rpc('create_trip_with_participants', {
-    p_session_token: sessionToken,
-    p_trip_name: name.trim(),
-    p_participant_names: participants,
-  })
-
-  throwIfError(error, 'Failed to create trip')
-  return data?.[0] ?? null
-}
-
-export async function getTrip(tripId) {
-  const client = requireSupabase()
-  const sessionToken = requireAccessToken()
-
-  const { data, error } = await client.rpc('get_trip_secure', {
-    p_session_token: sessionToken,
-    p_trip_id: tripId,
-  })
-
-  throwIfError(error, 'Failed to load trip')
-  return data?.[0] ?? null
-}
-
-export async function getTripUsers(tripId) {
-  const client = requireSupabase()
-  const sessionToken = requireAccessToken()
-
-  const { data, error } = await client.rpc('get_trip_users_secure', {
-    p_session_token: sessionToken,
-    p_trip_id: tripId,
-  })
-
-  throwIfError(error, 'Failed to load trip participants')
-
-  return (data ?? []).map((user) => ({
-    id: user.id,
-    name: user.name,
-    color: user.color ?? '#5f6f52',
-  }))
-}
-
-export async function upsertUser(user) {
-  const userId = user?.id
-  const userName = user?.name
-
-  if (!userId || !userName) {
-    throw new Error('Failed to upsert user: id and name are required')
-  }
-
-  return {
-    id: userId,
-    name: userName,
-    color: user?.color ?? pickColor(userId),
-  }
-}
-
 function normalizeDate(date) {
   if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return date
@@ -179,58 +70,152 @@ function normalizeDate(date) {
   return `${year}-${month}-${day}`
 }
 
-export async function replaceAvailability(tripId, userId, dates) {
-  const client = requireSupabase()
-  const sessionToken = requireAccessToken()
-
-  const uniqueDates = [...new Set(dates.map((date) => normalizeDate(date)))]
-  const { error } = await client.rpc('replace_availability_buffered', {
-    p_session_token: sessionToken,
-    p_trip_id: tripId,
-    p_user_id: userId,
-    p_dates: uniqueDates,
-  })
-
-  if (error?.message?.includes('rate_limited')) {
-    throw new Error('Availability sync was rate-limited. Please wait a moment and try again.')
+export function hasStoredAccessToken() {
+  try {
+    return window.localStorage.getItem(SESSION_HINT_STORAGE_KEY) === '1'
+  } catch {
+    return false
   }
-
-  throwIfError(error, 'Failed to save availability')
 }
 
-export async function getTripAvailability(tripId) {
-  const client = requireSupabase()
-  const sessionToken = requireAccessToken()
-
-  const { data, error } = await client.rpc('get_trip_availability_secure', {
-    p_session_token: sessionToken,
-    p_trip_id: tripId,
-  })
-
-  throwIfError(error, 'Failed to load availability')
-  return data ?? []
+export function storeAccessToken() {
+  setSessionHint(true)
 }
 
-export async function getUserAvailability(tripId, userId) {
-  const client = requireSupabase()
-  const sessionToken = requireAccessToken()
+export async function clearAccessToken() {
+  setSessionHint(false)
 
-  const { data, error } = await client.rpc('get_user_availability_secure', {
-    p_session_token: sessionToken,
-    p_trip_id: tripId,
-    p_user_id: userId,
+  try {
+    await apiPost('/api/session', {
+      action: 'logout',
+    })
+  } catch {
+    // Ignore logout failures.
+  }
+}
+
+export async function getSessionStatus() {
+  const result = await apiPost('/api/session', {
+    action: 'status',
   })
 
-  throwIfError(error, 'Failed to load user availability')
-  return (data ?? []).map((entry) => entry.date)
+  const active = Boolean(result?.active)
+  setSessionHint(active)
+  return active
 }
 
 export async function verifyAccessCode(code) {
-  const client = requireSupabase()
-  const { data, error } = await client.rpc('verify_access_code', {
-    p_code: code,
+  const result = await apiPost('/api/session', {
+    action: 'start',
+    code,
   })
 
-  throwIfError(error, 'Failed to verify access code')
-  return typeof data === 'string' && data.length > 0 ? data : null
+  const token = result?.ok ? 'cookie-session' : null
+  setSessionHint(Boolean(token))
+  return token
+}
+
+export async function consumeTripAccessToken(tripId, accessToken) {
+  const result = await apiPost('/api/trip', {
+    action: 'consumeAccess',
+    tripId,
+    accessToken,
+  })
+
+  const ok = Boolean(result?.ok)
+
+  if (ok) {
+    setSessionHint(true)
+  }
+
+  return ok
+}
+
+export async function createTrip(name, participantNames = []) {
+  const participants = normalizeParticipantNames(participantNames)
+  const result = await apiPost('/api/trip', {
+    action: 'createTrip',
+    tripName: String(name ?? '').trim(),
+    participantNames: participants,
+  })
+
+  return {
+    ...(result?.trip ?? null),
+    shareAccessToken: typeof result?.shareAccessToken === 'string' ? result.shareAccessToken : '',
+  }
+}
+
+export async function issueTripShareToken(tripId) {
+  const result = await apiPost('/api/trip', {
+    action: 'issueShareToken',
+    tripId,
+  })
+
+  const token = String(result?.accessToken ?? '')
+
+  if (!token) {
+    throw new Error('Failed to issue share token')
+  }
+
+  return token
+}
+
+export async function getTrip(tripId) {
+  const result = await apiPost('/api/trip', {
+    action: 'getTrip',
+    tripId,
+  })
+
+  return result?.trip ?? null
+}
+
+export async function getTripUsers(tripId) {
+  const result = await apiPost('/api/trip', {
+    action: 'getTripUsers',
+    tripId,
+  })
+
+  return (result?.users ?? []).map((user) => ({
+    id: user.id,
+    name: user.name,
+    color: user.color ?? '#5f6f52',
+  }))
+}
+
+export async function replaceAvailability(tripId, userId, dates) {
+  const uniqueDates = [...new Set((dates ?? []).map((date) => normalizeDate(date)))]
+
+  try {
+    await apiPost('/api/trip', {
+      action: 'replaceAvailability',
+      tripId,
+      userId,
+      dates: uniqueDates,
+    })
+  } catch (error) {
+    if (String(error?.message ?? '').includes('rate_limited')) {
+      throw new Error('Availability sync was rate-limited. Please wait a moment and try again.')
+    }
+
+    throw error
+  }
+}
+
+export async function getTripAvailability(tripId) {
+  const result = await apiPost('/api/trip', {
+    action: 'getTripAvailability',
+    tripId,
+  })
+
+  return result?.availability ?? []
+}
+
+export async function getUserAvailability(tripId, userId) {
+  const result = await apiPost('/api/trip', {
+    action: 'getUserAvailability',
+    tripId,
+    userId,
+  })
+
+  return result?.dates ?? []
 }

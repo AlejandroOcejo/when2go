@@ -5,12 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:api": "node api/local-dev-server.js",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
     "i18next": "^25.8.18",
     "posthog-js": "^1.361.1",
     "react": "^19.2.4",

@@ -1,6 +1,7 @@
 const BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 const BASE62_MAP = new Map([...BASE62_ALPHABET].map((char, index) => [char, index]))
 const TRIP_MONTH_LOCK_PREFIX = 'trip-month-lock:'
+const RECENT_TRIPS_STORAGE_KEY = 'recent-trips:v1'
 
 function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -95,6 +96,100 @@ export function getTripIdFromPath(pathname) {
   }
 
   return null
+}
+
+export function buildTripSharePath(tripId, accessToken) {
+  const basePath = getTripPathById(tripId)
+  const safeToken = String(accessToken ?? '').trim()
+
+  if (!safeToken) {
+    return basePath
+  }
+
+  const params = new URLSearchParams()
+  params.set('a', safeToken)
+  return `${basePath}?${params.toString()}`
+}
+
+export function getAccessTokenFromSearch(search) {
+  const params = new URLSearchParams(search)
+  const token = String(params.get('a') ?? '').trim()
+  return token || null
+}
+
+export function clearAccessTokenFromCurrentUrl() {
+  const currentUrl = new URL(window.location.href)
+
+  if (!currentUrl.searchParams.has('a')) {
+    return
+  }
+
+  currentUrl.searchParams.delete('a')
+  window.history.replaceState({}, '', `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`)
+}
+
+export function saveRecentTrip(trip) {
+  const safeTripId = String(trip?.id ?? '').trim()
+  const safeName = String(trip?.name ?? '').trim()
+
+  if (!safeTripId || !safeName) {
+    return
+  }
+
+  const safePath = String(trip?.path ?? getTripPathById(safeTripId)).trim()
+  const entry = {
+    id: safeTripId,
+    name: safeName,
+    path: safePath,
+    visitedAt: new Date().toISOString(),
+  }
+
+  try {
+    const current = getRecentTrips()
+    const next = [entry, ...current.filter((item) => item.id !== safeTripId)].slice(0, 6)
+    window.localStorage.setItem(RECENT_TRIPS_STORAGE_KEY, JSON.stringify(next))
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+export function getRecentTrips() {
+  try {
+    const raw = window.localStorage.getItem(RECENT_TRIPS_STORAGE_KEY)
+    const parsed = JSON.parse(raw ?? '[]')
+
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed
+      .map((item) => ({
+        id: String(item?.id ?? '').trim(),
+        name: String(item?.name ?? '').trim(),
+        path: String(item?.path ?? '').trim(),
+        visitedAt: String(item?.visitedAt ?? '').trim(),
+      }))
+      .filter((item) => item.id && item.name && item.path)
+      .slice(0, 6)
+  } catch {
+    return []
+  }
+}
+
+export function removeRecentTrip(tripId) {
+  const safeTripId = String(tripId ?? '').trim()
+
+  if (!safeTripId) {
+    return
+  }
+
+  try {
+    const current = getRecentTrips()
+    const next = current.filter((item) => item.id !== safeTripId)
+    window.localStorage.setItem(RECENT_TRIPS_STORAGE_KEY, JSON.stringify(next))
+  } catch {
+    // Ignore storage failures.
+  }
 }
 
 export function saveTripMonthLock(tripId, monthKey) {
