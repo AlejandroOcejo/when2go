@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import AccessGate from './components/AccessGate'
 import TripPage from './pages/TripPage'
+import TripPlanPage from './pages/TripPlanPage'
 import LandingPage from './pages/LandingPage'
 import { initAnalytics } from './lib/telemetry'
 import {
@@ -13,6 +14,7 @@ import {
   clearAccessTokenFromCurrentUrl,
   getAccessTokenFromSearch,
   getTripIdFromPath,
+  isPlanPath,
 } from './lib/tripLink'
 import { getOrCreateAnonymousUser } from './lib/userIdentity'
 
@@ -108,7 +110,10 @@ function App() {
   }
 
   if (tripId) {
-    return <TripPage tripId={tripId} />
+    if (isPlanPath(pathname)) {
+      return <TripPlanPage tripId={tripId} onNavigate={navigate} />
+    }
+    return <TripPage tripId={tripId} onNavigate={navigate} />
   }
 
   return <LandingPage onNavigate={navigate} />

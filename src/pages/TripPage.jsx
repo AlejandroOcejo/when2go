@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import brandIcon from '../assets/svgS.svg'
 import AppFooter from '../components/AppFooter'
+import AppHeader from '../components/AppHeader'
 import AvailabilityCalendar from '../components/AvailabilityCalendar'
 import GroupAvailabilityList from '../components/GroupAvailabilityList'
 import ShareCard from '../components/ShareCard'
@@ -9,6 +9,8 @@ import TripLoadingSkeleton from '../components/TripLoadingSkeleton'
 import UserPicker from '../components/UserPicker'
 import { identifyAnalyticsUser, trackEvent } from '../lib/telemetry'
 import {
+  closeTrip,
+  confirmReady,
   getTrip,
   getTripAvailability,
   getTripUsers,
@@ -25,8 +27,22 @@ import {
   buildTripSharePath,
   getTripMonthLock,
   getTripPathById,
+  getTripPlanPath,
   saveRecentTrip,
 } from '../lib/tripLink'
+
+function formatDateRange(sortedDates) {
+  if (!sortedDates.length) return ''
+  const parse = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d) }
+  const from = parse(sortedDates[0])
+  const to = parse(sortedDates[sortedDates.length - 1])
+  if (sortedDates.length === 1)
+    return from.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const sameMonth = from.getFullYear() === to.getFullYear() && from.getMonth() === to.getMonth()
+  if (sameMonth)
+    return `${from.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}–${to.getDate()}, ${to.getFullYear()}`
+  return `${from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${to.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+}
 
 function groupAvailabilityByDate(availabilityRows) {
   return availabilityRows.reduce((accumulator, row) => {
@@ -126,6 +142,10 @@ function TripPage({ tripId }) {
   const [shareLink, setShareLink] = useState(
     () => `${window.location.origin}${getTripPathById(tripId)}`,
   )
+  const [isConfirmingReady, setIsConfirmingReady] = useState(false)
+  const [isClosingTrip, setIsClosingTrip] = useState(false)
+  const [showCloseOverlay, setShowCloseOverlay] = useState(false)
+  const [overlayReady, setOverlayReady] = useState(false)
   const pendingDatesRef = useRef([])
   const syncedDatesRef = useRef([])
   const isSyncingRef = useRef(false)
@@ -135,15 +155,30 @@ function TripPage({ tripId }) {
     return tripUsers.find((user) => user.id === selectedTripUserId) ?? null
   }, [tripUsers, selectedTripUserId])
 
-  const lockedMonth = getMonthFromSearch(window.location.search) ?? getTripMonthLock(tripId)
+  const confirmedCount = useMemo(() => {
+    return tripUsers.filter((u) => u.confirmedAt).length
+  }, [tripUsers])
 
   const groupedAvailability = useMemo(() => {
     return groupAvailabilityByDate(availabilityRows)
   }, [availabilityRows])
 
+  const scheduleDates = useMemo(
+    () => Object.keys(groupedAvailability).sort(),
+    [groupedAvailability],
+  )
+
+  const lockedMonth = getMonthFromSearch(window.location.search) ?? getTripMonthLock(tripId)
+
   useEffect(() => {
     identifyAnalyticsUser(viewer.id)
   }, [viewer.id])
+
+  useEffect(() => {
+    if (!showCloseOverlay) { setOverlayReady(false); return }
+    const raf = requestAnimationFrame(() => setOverlayReady(true))
+    return () => cancelAnimationFrame(raf)
+  }, [showCloseOverlay])
 
   useEffect(() => {
     if (!trip) return
@@ -374,6 +409,46 @@ function TripPage({ tripId }) {
     await flushAndSetUser(null)
   }
 
+  async function handleConfirmReady() {
+    if (!selectedTripUser || isConfirmingReady) return
+
+    try {
+      setIsConfirmingReady(true)
+      await confirmReady(tripId, selectedTripUser.id)
+      setTripUsers((users) =>
+        users.map((u) =>
+          u.id === selectedTripUser.id ? { ...u, confirmedAt: new Date().toISOString() } : u,
+        ),
+      )
+      trackEvent('user_confirmed_ready', { trip_id: tripId })
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setIsConfirmingReady(false)
+    }
+  }
+
+  async function handleCloseTrip() {
+    if (isClosingTrip) return
+
+    try {
+      setIsClosingTrip(true)
+      if (selectedTripUser && !areDateKeysEqual(pendingDatesRef.current, syncedDatesRef.current)) {
+        const pendingDates = normalizeDateKeys(pendingDatesRef.current)
+        await replaceAvailability(tripId, selectedTripUser.id, pendingDates)
+        syncedDatesRef.current = pendingDates
+      }
+      await closeTrip(tripId)
+      setTrip((current) => ({ ...current, closedAt: new Date().toISOString() }))
+      setShowCloseOverlay(true)
+      trackEvent('trip_closed', { trip_id: tripId })
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setIsClosingTrip(false)
+    }
+  }
+
   function handleDatesChange(nextDates) {
     if (!selectedTripUserId) return
 
@@ -438,20 +513,63 @@ function TripPage({ tripId }) {
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
-      <header className="mx-auto mb-8 flex w-full max-w-3xl items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-3 transition-colors duration-150">
-        <a
-          href="/"
-          className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-slate-900"
-        >
-          <img src={brandIcon} alt="" className="h-8 w-8 rounded-lg border border-slate-400 bg-white object-contain" />
-          <span className="truncate">{t('brand.name')}</span>
-        </a>
-        <span className="rounded-md bg-orange-500 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
-          {t('badge.liveTrip')}
-        </span>
-      </header>
+      <AppHeader tripName={trip.name} wide>
+        {trip?.closedAt ? (
+          <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+            {t('badge.tripClosed')}
+          </span>
+        ) : (
+          <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-600">
+            <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" aria-hidden="true" />
+            {t('badge.liveTrip')}
+          </span>
+        )}
+      </AppHeader>
 
       <ShareCard tripId={tripId} tripName={trip.name} shareLink={shareLink} />
+
+      {tripUsers.length > 0 && (
+        trip.closedAt ? (
+          <section className="mx-auto mt-3 max-w-3xl overflow-hidden rounded-xl border-2 border-emerald-200 bg-emerald-50">
+            <div className="flex items-start justify-between gap-4 px-6 py-5">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-600 text-lg leading-none">✓</span>
+                  <span className="font-bold text-emerald-800">{t('trip.closedBanner')}</span>
+                </div>
+                <p className="mt-1 text-sm text-slate-600">
+                  {t('trip.readyCount', { confirmed: confirmedCount, total: tripUsers.length })}
+                </p>
+                <p className="mt-2 text-sm text-slate-600">{t('trip.closedHint')}</p>
+              </div>
+              <a
+                href={getTripPlanPath(tripId)}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
+              >
+                {t('trip.planTrip')}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </a>
+            </div>
+          </section>
+        ) : (
+          <section className="mx-auto mt-3 max-w-3xl flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5">
+            <span className="text-sm text-slate-600">
+              {t('trip.readyCount', { confirmed: confirmedCount, total: tripUsers.length })}
+            </span>
+            <button
+              type="button"
+              onClick={handleCloseTrip}
+              disabled={isClosingTrip}
+              className="rounded-md border border-slate-400 bg-white px-2.5 py-1 text-xs font-medium text-slate-800 transition duration-150 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isClosingTrip ? t('trip.closingTrip') : t('trip.closeTrip')}
+            </button>
+          </section>
+        )
+      )}
 
       {!selectedTripUser ? (
         <div className="mx-auto mt-5 max-w-3xl">
@@ -466,13 +584,29 @@ function TripPage({ tripId }) {
         </div>
       ) : (
         <>
-          <section className="mx-auto mt-5 flex max-w-3xl items-center gap-3 rounded-xl border border-slate-300 bg-white p-4">
+          <section className="mx-auto mt-5 flex max-w-3xl flex-wrap items-center gap-3 rounded-xl border border-slate-300 bg-white p-4">
             <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
               {t('trip.youAre')}
             </span>
             <div className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-slate-100 px-3 py-1 text-sm text-slate-900">
               <strong>{selectedTripUser.name}</strong>
             </div>
+
+            {selectedTripUser.confirmedAt ? (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                ✓ {t('trip.ready')}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleConfirmReady}
+                disabled={isConfirmingReady}
+                className="rounded-md border border-emerald-500 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800 transition duration-150 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isConfirmingReady ? t('trip.confirming') : t('trip.markReady')}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleClearSelectedUser}
@@ -489,6 +623,7 @@ function TripPage({ tripId }) {
               totalUsers={tripUsers.length}
               lockedMonth={lockedMonth}
               onChange={handleDatesChange}
+              readOnly={Boolean(trip.closedAt)}
             />
           </div>
 
@@ -497,6 +632,61 @@ function TripPage({ tripId }) {
       )}
 
       <AppFooter />
+
+      {showCloseOverlay && (
+        <div
+          onClick={() => setShowCloseOverlay(false)}
+          className={`fixed inset-0 z-50 flex items-center justify-center p-6 transition-all duration-500 ${overlayReady ? 'opacity-100' : 'opacity-0'}`}
+          style={{ background: 'rgba(2,6,23,0.82)' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl transition-all duration-500 ${overlayReady ? 'scale-100 translate-y-0' : 'scale-95 translate-y-6'}`}
+          >
+            <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600" />
+            <div className="px-8 pb-8 pt-7 text-center">
+              <div className="relative mx-auto mb-5 h-20 w-20">
+                <div className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-20" />
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 shadow-lg">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-bold text-slate-900">{t('trip.closedOverlayTitle')}</h2>
+              <p className="mt-1 text-sm text-slate-500">{trip?.name}</p>
+
+              {scheduleDates.length > 0 && (
+                <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3.5">
+                  <p className="font-semibold text-slate-800">{formatDateRange(scheduleDates)}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {t('trip.closedOverlayParticipants', { count: tripUsers.length })}
+                  </p>
+                </div>
+              )}
+
+              <a
+                href={getTripPlanPath(tripId)}
+                className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
+              >
+                {t('trip.planTrip')}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setShowCloseOverlay(false)}
+                className="mt-3 text-xs text-slate-400 transition-colors hover:text-slate-600"
+              >
+                {t('trip.closedOverlayDismiss')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

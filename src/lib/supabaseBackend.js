@@ -166,7 +166,15 @@ export async function getTrip(tripId) {
     tripId,
   })
 
-  return result?.trip ?? null
+  const raw = result?.trip ?? null
+
+  if (!raw) return null
+
+  return {
+    id: raw.id,
+    name: raw.name,
+    closedAt: raw.closed_at ?? null,
+  }
 }
 
 export async function getTripUsers(tripId) {
@@ -179,6 +187,7 @@ export async function getTripUsers(tripId) {
     id: user.id,
     name: user.name,
     color: user.color ?? '#5f6f52',
+    confirmedAt: user.confirmed_at ?? null,
   }))
 }
 
@@ -218,4 +227,47 @@ export async function getUserAvailability(tripId, userId) {
   })
 
   return result?.dates ?? []
+}
+
+export async function confirmReady(tripId, userId) {
+  await apiPost('/api/trip', {
+    action: 'confirmReady',
+    tripId,
+    userId,
+  })
+}
+
+export async function closeTrip(tripId) {
+  await apiPost('/api/trip', {
+    action: 'closeTrip',
+    tripId,
+  })
+}
+
+export async function getTripActivities(tripId) {
+  const result = await apiPost('/api/trip', { action: 'getActivities', tripId })
+  return (result?.activities ?? []).map((a) => ({
+    id: a.id,
+    date: String(a.date),
+    hour: Number(a.hour),
+    title: a.title,
+    createdBy: a.created_by ?? null,
+    createdAt: a.created_at,
+  }))
+}
+
+export async function addTripActivity(tripId, { date, hour, title, userId }) {
+  const result = await apiPost('/api/trip', {
+    action: 'addActivity',
+    tripId,
+    date,
+    hour,
+    title,
+    userId: userId ?? null,
+  })
+  return String(result?.id ?? '')
+}
+
+export async function removeTripActivity(tripId, activityId) {
+  await apiPost('/api/trip', { action: 'removeActivity', tripId, activityId })
 }

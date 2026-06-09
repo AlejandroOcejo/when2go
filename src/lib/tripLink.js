@@ -82,20 +82,28 @@ export function getTripPathById(tripId) {
 }
 
 export function getTripIdFromPath(pathname) {
-  const shortMatch = pathname.match(/^\/t\/([^/]+)$/)
+  const shortMatch = pathname.match(/^\/t\/([^/]+)(?:\/plan)?$/)
 
   if (shortMatch) {
     const shortId = decodeURIComponent(shortMatch[1])
     return shortIdToUuid(shortId) ?? shortId
   }
 
-  const longMatch = pathname.match(/^\/trip\/([^/]+)$/)
+  const longMatch = pathname.match(/^\/trip\/([^/]+)(?:\/plan)?$/)
 
   if (longMatch) {
     return decodeURIComponent(longMatch[1])
   }
 
   return null
+}
+
+export function getTripPlanPath(tripId) {
+  return `${getTripPathById(tripId)}/plan`
+}
+
+export function isPlanPath(pathname) {
+  return pathname.endsWith('/plan')
 }
 
 export function buildTripSharePath(tripId, accessToken) {

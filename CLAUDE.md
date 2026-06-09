@@ -53,6 +53,8 @@ src/
     GroupAvailabilityList.jsx # Group availability sorted by popularity
     ShareCard.jsx             # Share link card (expand/collapse, copy state)
     TripLoadingSkeleton.jsx   # Full-page loading skeleton for TripPage
+    FlightSearch.jsx          # Skyscanner-linked flight search form (mock)
+    TripSchedule.jsx          # Agenda view (hours × days) shown when trip is closed
     UserPicker.jsx            # Participant selection buttons
   lib/
     supabaseBackend.js   # fetch() wrappers for all API calls
@@ -64,6 +66,7 @@ src/
   pages/
     LandingPage.jsx      # Landing page (self-contained form state)
     TripPage.jsx         # Trip coordinator — data fetching + orchestration
+    TripPlanPage.jsx     # Post-close planning page: flights, hotels, agenda tabs
   App.jsx                # Thin router: bootstrap → access gate → trip | landing
   main.jsx
 ```
@@ -79,6 +82,8 @@ All RPC functions use `_v2` suffix:
 - `get_trip_secure_v2` / `get_trip_users_secure_v2`
 - `get_trip_availability_secure_v2` / `get_user_availability_secure_v2`
 - `replace_availability_buffered_secure_v2`
+- `confirm_user_ready_v2` / `close_trip_v2`
+- `get_trip_activities_v2` / `add_trip_activity_v2` / `remove_trip_activity_v2`
 
 ## Key Behaviors
 
@@ -103,23 +108,36 @@ All RPC functions use `_v2` suffix:
 - `/t/<shortId>` — short URL trip access
 - `/trip/<tripId>` — full UUID trip path
 
-## Pending Features
+## Features
 
-### Close/lock dates
-Once the group has settled on dates, the trip should be closeable so the calendar becomes read-only and the activity planning phase begins.
+### Close/lock dates (implemented)
+Any participant with trip access can close the trip. Once closed, the calendar is read-only.
 
-**Proposed UX:**
-- Each participant has a "Ready" button — marks their availability as final
-- Trip header shows confirmation progress (e.g. "3/5 ready")
-- Creator can force-close at any time regardless of who has confirmed
-- Closing does NOT auto-trigger when all confirm — it's always a deliberate creator action
+**UX:**
+- Status bar below ShareCard shows "X of Y ready" + "Close trip" button
+- "Mark as ready" button on the "You are X" bar; turns into "✓ Ready" after confirming
+- Header badge switches from orange "Live trip" to green "Closed" when trip is closed
+- Calendar shows `lockedTitle`/`lockedSubtitle` and disables selection when `readOnly=true`
+- UserPicker shows ✓ next to confirmed participants
 
-**DB changes needed:**
-- `closed_at timestamptz` on `trips`
-- `confirmed_at timestamptz` on `users` (nullable — null = not confirmed)
+**DB schema:**
+- `trips.closed_at timestamptz` — null = open, set = closed (idempotent via `coalesce`)
+- `users.confirmed_at timestamptz` — null = not ready, set = ready
 
-**New RPCs needed (`_v2`):**
-- `confirm_user_ready_v2(session_token_hash, trip_id, user_id)`
-- `close_trip_v2(session_token_hash, trip_id)` — creator only
+**Schema migration:** run the close-dates section at the bottom of `supabase/schema.sql` against the Supabase SQL editor. Note: the migration uses `drop function if exists` + `create function` (not `create or replace`) for the two RPCs whose return signatures changed.
 
-**Why creator-only close:** avoids auto-close edge cases where the last passive user to confirm unknowingly locks the trip. Progress visibility is enough to prompt the creator to act.
+### Trip schedule (implemented)
+Shown below the locked calendar when a trip is closed. Participants can plan activities per day/hour.
+
+**UX:**
+- Agenda view: one card per day (dates from group availability), hour rows 07:00–22:00
+- Hover a row to reveal `+ Add` button; click to open inline input
+- Press Enter to save, Escape to cancel; blur also commits if non-empty
+- Activities render as chips with `×` to remove
+- Optimistic updates: activity appears immediately, reverts if API fails
+- Polls every 15 s to sync with other participants
+
+**DB schema:**
+- `trip_activities` table: `id`, `trip_id`, `date`, `hour` (0–23), `title` (≤200 chars), `created_by` (nullable user id), `created_at`
+
+**Schema migration:** run the trip-schedule section at the bottom of `supabase/schema.sql` in the Supabase SQL editor.

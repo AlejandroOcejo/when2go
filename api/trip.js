@@ -258,6 +258,82 @@ export default async function handler(req, res) {
       return sendJson(res, 200, { accessToken: data })
     }
 
+    if (action === 'confirmReady') {
+      const userId = String(body.userId || '').trim()
+
+      if (!userId) {
+        return sendJson(res, 400, { error: 'user_id_required' })
+      }
+
+      const { error } = await supabaseAdmin.rpc('confirm_user_ready_v2', {
+        p_session_token_hash: sessionHash,
+        p_trip_id: tripId,
+        p_user_id: userId,
+      })
+
+      if (error) {
+        console.error('confirm_ready_failed', error)
+        return sendJson(res, 403, { error: 'confirm_ready_failed' })
+      }
+
+      return sendJson(res, 200, { ok: true })
+    }
+
+    if (action === 'closeTrip') {
+      const { error } = await supabaseAdmin.rpc('close_trip_v2', {
+        p_session_token_hash: sessionHash,
+        p_trip_id: tripId,
+      })
+
+      if (error) {
+        console.error('close_trip_failed', error)
+        return sendJson(res, 403, { error: 'close_trip_failed' })
+      }
+
+      return sendJson(res, 200, { ok: true })
+    }
+
+    if (action === 'getActivities') {
+      const { data, error } = await supabaseAdmin.rpc('get_trip_activities_v2', {
+        p_session_token_hash: sessionHash,
+        p_trip_id: tripId,
+      })
+      if (error) { console.error('get_activities_failed', error); return sendJson(res, 403, { error: 'get_activities_failed' }) }
+      return sendJson(res, 200, { activities: data || [] })
+    }
+
+    if (action === 'addActivity') {
+      const date = String(body.date || '').trim()
+      const hour = Number(body.hour)
+      const title = String(body.title || '').trim()
+      const userId = String(body.userId || '').trim() || null
+      if (!date || !title || !Number.isInteger(hour) || hour < 0 || hour > 23) {
+        return sendJson(res, 400, { error: 'invalid_activity_params' })
+      }
+      const { data, error } = await supabaseAdmin.rpc('add_trip_activity_v2', {
+        p_session_token_hash: sessionHash,
+        p_trip_id: tripId,
+        p_date: date,
+        p_hour: hour,
+        p_title: title,
+        p_user_id: userId,
+      })
+      if (error) { console.error('add_activity_failed', error); return sendJson(res, 403, { error: 'add_activity_failed' }) }
+      return sendJson(res, 200, { id: data })
+    }
+
+    if (action === 'removeActivity') {
+      const activityId = String(body.activityId || '').trim()
+      if (!activityId) return sendJson(res, 400, { error: 'activity_id_required' })
+      const { error } = await supabaseAdmin.rpc('remove_trip_activity_v2', {
+        p_session_token_hash: sessionHash,
+        p_trip_id: tripId,
+        p_activity_id: activityId,
+      })
+      if (error) { console.error('remove_activity_failed', error); return sendJson(res, 403, { error: 'remove_activity_failed' }) }
+      return sendJson(res, 200, { ok: true })
+    }
+
     return sendJson(res, 400, { error: 'invalid_action' })
   } catch (error) {
     console.error('trip_api_error', error)

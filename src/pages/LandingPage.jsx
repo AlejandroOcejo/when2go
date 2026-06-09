@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import brandIcon from '../assets/svgS.svg'
 import AppFooter from '../components/AppFooter'
+import AppHeader from '../components/AppHeader'
 import { trackEvent } from '../lib/telemetry'
 import { clearAccessToken, createTrip } from '../lib/supabaseBackend'
 import { getRecentTrips, getTripPathById, saveTripMonthLock } from '../lib/tripLink'
@@ -118,15 +118,11 @@ function LandingPage({ onNavigate }) {
         }`}
       </style>
 
-      <header className="mx-auto mb-8 flex w-full max-w-2xl items-center justify-between rounded-lg border border-slate-300 bg-white px-4 py-3 transition-colors duration-150">
-        <a href="/" className="inline-flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight text-slate-900">
-          <img src={brandIcon} alt="" className="h-8 w-8 rounded-lg border border-slate-400 bg-white object-contain" />
-          <span className="truncate">{t('brand.name')}</span>
-        </a>
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+      <AppHeader>
+        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
           Invite only
         </span>
-      </header>
+      </AppHeader>
 
       <section className="mx-auto max-w-2xl rounded-xl border border-slate-300 bg-white p-7 sm:p-10">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">{t('landing.eyebrow')}</p>

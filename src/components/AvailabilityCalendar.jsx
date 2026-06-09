@@ -14,11 +14,11 @@ const SELECTED_OUTLINE_CLASS =
 
 const SHARED_CLASS_NAMES = {
   root: 'rdp-root w-full',
-  months: 'flex flex-col',
-  month: 'mx-auto w-fit space-y-3',
+  months: 'relative flex flex-col w-fit mx-auto',
+  month: 'w-fit space-y-3',
   month_caption: 'relative flex items-center justify-center py-2',
   caption_label: 'pointer-events-none relative z-0 text-base font-semibold text-slate-900',
-  nav: 'absolute inset-x-0 z-10 flex items-center justify-between px-12',
+  nav: 'absolute inset-x-0 z-10 flex items-center justify-between px-1',
   button_previous: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150 disabled:pointer-events-none',
   button_next: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150',
   month_grid: 'w-full border-collapse',
@@ -89,7 +89,7 @@ function monthKeyToDate(monthKey) {
 
 // Stable module-level component — never recreated, reads live data from context.
 function CalendarDayButton(props) {
-  const { mode, availabilityCountByDate, safeTotalUsers, tapPulseKey, setTapPulseKey, t } =
+  const { mode, readOnly, availabilityCountByDate, safeTotalUsers, tapPulseKey, setTapPulseKey, t } =
     useContext(CalendarCtx)
   const { day, modifiers, children, className, ...buttonProps } = props
   const dateKey = toDateKey(day.date)
@@ -123,12 +123,15 @@ function CalendarDayButton(props) {
 
   const tapAnimationClass =
     tapPulseKey === dateKey ? 'animate-[day-tap-pop_240ms_cubic-bezier(0.2,0.9,0.3,1)]' : ''
-  const mergedClassName = [className, selectionClass, tapAnimationClass].filter(Boolean).join(' ')
+  const readOnlyClass = readOnly ? 'cursor-default' : ''
+  const mergedClassName = [className, selectionClass, tapAnimationClass, readOnlyClass].filter(Boolean).join(' ')
 
   return (
     <button
       {...buttonProps}
       onClick={(event) => {
+        if (readOnly) return
+
         trackEvent('calendar_day_clicked', {
           date_key: dateKey,
           mode,
@@ -210,7 +213,7 @@ const PICKER_COMPONENTS = {
   NextMonthButton: NavigationButton,
 }
 
-function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, lockedMonth, onChange }) {
+function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, lockedMonth, onChange, readOnly = false }) {
   const { t } = useTranslation()
   const [mode, setMode] = useState('multiple')
   const [rangeDraft, setRangeDraft] = useState(undefined)
@@ -256,12 +259,13 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
 
   const ctxValue = useMemo(() => ({
     mode,
+    readOnly,
     availabilityCountByDate,
     safeTotalUsers,
     tapPulseKey,
     setTapPulseKey,
     t,
-  }), [mode, availabilityCountByDate, safeTotalUsers, tapPulseKey, t])
+  }), [mode, readOnly, availabilityCountByDate, safeTotalUsers, tapPulseKey, t])
 
   useEffect(() => {
     if (!tapPulseKey) return
@@ -289,57 +293,74 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
       .rdp-month { overflow: hidden; }`}
         </style>
 
-        <h2 className="text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-[28px]">{t('calendar.title')}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">{t('calendar.subtitle')}</p>
-
-        <p
-          className={`mt-3 inline-flex rounded-md border px-2.5 py-1 text-xs font-medium transition duration-150 ${
-            selectedCount > 0
-              ? 'border-orange-500 bg-white text-orange-700'
-              : 'border-slate-300 bg-white text-slate-600'
-          }`}
-        >
-          {selectedCount === 0
-            ? t('calendar.selectedNone')
-            : t('calendar.selectedCount', { count: selectedCount })}
+        <h2 className="text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-[28px]">
+          {readOnly ? t('calendar.lockedTitle') : t('calendar.title')}
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          {readOnly ? t('calendar.lockedSubtitle') : t('calendar.subtitle')}
         </p>
 
-        <div className="mt-6 flex w-full justify-center">
-          <div className="relative inline-grid w-full max-w-[300px] grid-cols-2 rounded-md border border-slate-400 bg-white p-1">
-            <span
-              aria-hidden="true"
-              className={`pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-sm bg-orange-500 transition-transform duration-250 ease-out ${
-                mode === 'range' ? 'translate-x-full' : 'translate-x-0'
-              }`}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setMode('multiple')
-                setRangeDraft(undefined)
-              }}
-              className={`relative z-10 h-8 rounded-sm px-3 text-xs font-semibold transition-colors duration-200 ${
-                mode === 'multiple' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
-              }`}
-            >
-              {t('calendar.multipleDates')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('range')
-                setRangeDraft(undefined)
-              }}
-              className={`relative z-10 h-8 rounded-sm px-3 text-xs font-semibold transition-colors duration-200 ${
-                mode === 'range' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
-              }`}
-            >
-              {t('calendar.dateRange')}
-            </button>
-          </div>
-        </div>
+        {!readOnly && (
+          <p
+            className={`mt-3 inline-flex rounded-md border px-2.5 py-1 text-xs font-medium transition duration-150 ${
+              selectedCount > 0
+                ? 'border-orange-500 bg-white text-orange-700'
+                : 'border-slate-300 bg-white text-slate-600'
+            }`}
+          >
+            {selectedCount === 0
+              ? t('calendar.selectedNone')
+              : t('calendar.selectedCount', { count: selectedCount })}
+          </p>
+        )}
 
-        {mode === 'multiple' ? (
+        {!readOnly && (
+          <div className="mt-6 flex w-full justify-center">
+            <div className="relative inline-grid w-full max-w-[300px] grid-cols-2 rounded-md border border-slate-400 bg-white p-1">
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-sm bg-orange-500 transition-transform duration-250 ease-out ${
+                  mode === 'range' ? 'translate-x-full' : 'translate-x-0'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('multiple')
+                  setRangeDraft(undefined)
+                }}
+                className={`relative z-10 h-8 rounded-sm px-3 text-xs font-semibold transition-colors duration-200 ${
+                  mode === 'multiple' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                }`}
+              >
+                {t('calendar.multipleDates')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('range')
+                  setRangeDraft(undefined)
+                }}
+                className={`relative z-10 h-8 rounded-sm px-3 text-xs font-semibold transition-colors duration-200 ${
+                  mode === 'range' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                }`}
+              >
+                {t('calendar.dateRange')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {readOnly ? (
+          <DayPicker
+            {...sharedPickerProps}
+            mode="multiple"
+            selected={selectedDateObjects}
+            onSelect={() => {}}
+            components={PICKER_COMPONENTS}
+            classNames={SHARED_CLASS_NAMES}
+          />
+        ) : mode === 'multiple' ? (
           <DayPicker
             {...sharedPickerProps}
             mode="multiple"
