@@ -351,8 +351,8 @@ function TripPlanPage({ tripId }) {
           <span
             aria-hidden="true"
             className={`pointer-events-none absolute inset-y-1 left-1 rounded-md bg-slate-900 transition-transform duration-200 ease-out ${
-              activeTab === 'flights' ? 'translate-x-0' :
-              activeTab === 'hotels'  ? 'translate-x-full' :
+              activeTab === 'hotels'  ? 'translate-x-0' :
+              activeTab === 'flights' ? 'translate-x-full' :
               'translate-x-[200%]'
             }`}
             style={{ width: 'calc((100% - 8px) / 3)' }}
