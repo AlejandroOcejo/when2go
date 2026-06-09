@@ -30,6 +30,7 @@ import {
   getTripPlanPath,
   saveRecentTrip,
 } from '../lib/tripLink'
+import { getTripEmoji } from '../lib/tripEmoji'
 
 function formatDateRange(sortedDates) {
   if (!sortedDates.length) return ''
@@ -645,14 +646,24 @@ function TripPage({ tripId }) {
           >
             <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600" />
             <div className="px-8 pb-8 pt-7 text-center">
-              <div className="relative mx-auto mb-5 h-20 w-20">
-                <div className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-20" />
-                <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 shadow-lg">
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-              </div>
+              {(() => {
+                const em = getTripEmoji(trip?.name)
+                return em ? (
+                  <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center">
+                    <div className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-20" />
+                    <span className="relative text-5xl leading-none">{em}</span>
+                  </div>
+                ) : (
+                  <div className="relative mx-auto mb-5 h-20 w-20">
+                    <div className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-20" />
+                    <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 shadow-lg">
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                  </div>
+                )
+              })()}
 
               <h2 className="text-2xl font-bold text-slate-900">{t('trip.closedOverlayTitle')}</h2>
               <p className="mt-1 text-sm text-slate-500">{trip?.name}</p>

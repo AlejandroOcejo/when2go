@@ -13,6 +13,7 @@ import {
   getTripUsers,
   removeTripActivity,
 } from '../lib/supabaseBackend'
+import { getTripEmoji } from '../lib/tripEmoji'
 import { getTripPathById } from '../lib/tripLink'
 import { getSelectedTripUser } from '../lib/userIdentity'
 
@@ -326,7 +327,10 @@ function TripPlanPage({ tripId }) {
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
                 {t('plan.eyebrow')}
               </span>
-              <h1 className="mt-1 truncate text-2xl font-bold text-slate-900">{trip?.name}</h1>
+              <h1 className="mt-1 truncate text-2xl font-bold text-slate-900">
+                {(() => { const em = getTripEmoji(trip?.name); return em ? <span className="mr-2">{em}</span> : null })()}
+                {trip?.name}
+              </h1>
               {dateRange && (
                 <p className="mt-1 text-sm text-slate-600">
                   {dateRange}
