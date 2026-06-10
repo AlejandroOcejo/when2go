@@ -34,14 +34,24 @@ jobs:
         run: npm run build
 
       - name: Add Capacitor iOS platform
-        run: npx cap add ios
+        env:
+          CI: true
+        run: |
+          npx cap add ios
+          echo "--- ios/ structure after cap add ---"
+          find ios -maxdepth 4 | sort || echo "(ios/ not found)"
 
-      - name: Show iOS structure
-        run: find ios -maxdepth 3 | sort
+      - name: Sync Capacitor
+        run: npx cap sync ios
 
       - name: Install CocoaPods
         run: |
           PODFILE_DIR=$(find ios -name "Podfile" -exec dirname {} \; | head -1)
+          if [ -z "$PODFILE_DIR" ]; then
+            echo "ERROR: Podfile not found. Full ios/ tree:"
+            find ios | sort
+            exit 1
+          fi
           echo "Podfile found at: $PODFILE_DIR"
           cd "$PODFILE_DIR" && pod install --repo-update
 
