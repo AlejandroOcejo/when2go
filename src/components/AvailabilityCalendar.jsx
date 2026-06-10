@@ -7,7 +7,7 @@ const BRAND_ORANGE_RGB = '249, 115, 22'
 const BRAND_ORANGE_DARK = '#ea580c'
 
 const DAY_BUTTON_CLASSES =
-  'relative inline-flex h-10 w-10 min-h-10 min-w-10 max-h-10 max-w-10 aspect-square box-border cursor-pointer items-center justify-center rounded-md p-0 text-sm font-semibold text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-[background-color,transform,color] duration-150 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-300 dark:disabled:text-slate-600 disabled:opacity-60 disabled:active:scale-100 select-none [touch-action:manipulation]'
+  'relative flex h-full w-full box-border cursor-pointer items-center justify-center rounded-md p-0 text-sm font-semibold text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-[background-color,transform,color] duration-150 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-300 dark:disabled:text-slate-600 disabled:opacity-60 disabled:active:scale-100 select-none [touch-action:manipulation]'
 
 const SELECTED_OUTLINE_CLASS =
   `bg-transparent text-slate-900 dark:text-slate-100 shadow-[inset_0_0_0_2px_${BRAND_ORANGE_DARK}]`
@@ -25,7 +25,7 @@ const SHARED_CLASS_NAMES = {
   weekdays: 'grid grid-cols-7 gap-1.5',
   weekday: 'py-1 text-center text-xs font-semibold text-slate-600 dark:text-slate-400',
   week: 'grid grid-cols-7 gap-x-1.5 mb-1.5 last:mb-0',
-  day: 'flex items-center justify-center p-0',
+  day: 'aspect-square overflow-hidden',
   day_button: DAY_BUTTON_CLASSES,
   selected: 'text-slate-900 dark:text-slate-100 font-semibold',
   disabled: 'text-slate-300 dark:text-slate-600',
