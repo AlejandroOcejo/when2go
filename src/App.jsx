@@ -119,7 +119,13 @@ function App() {
     return <LandingPage onNavigate={navigate} />
   }
 
-  return <DarkModeProvider>{renderContent()}</DarkModeProvider>
+  return (
+    <DarkModeProvider>
+      <div className="min-h-dvh bg-slate-50 dark:bg-slate-950 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+        {renderContent()}
+      </div>
+    </DarkModeProvider>
+  )
 }
 
 export default App
