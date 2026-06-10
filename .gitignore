@@ -28,3 +28,4 @@ supabase/schema.sql
 
 # Docs
 docs/architecture.md
+CLAUDE.md
