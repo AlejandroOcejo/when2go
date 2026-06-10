@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import AccessGate from './components/AccessGate'
 import TripPage from './pages/TripPage'
+import TripPlanPage from './pages/TripPlanPage'
 import LandingPage from './pages/LandingPage'
+import { DarkModeProvider } from './lib/darkMode'
 import { initAnalytics } from './lib/telemetry'
 import {
   consumeTripAccessToken,
@@ -13,6 +15,7 @@ import {
   clearAccessTokenFromCurrentUrl,
   getAccessTokenFromSearch,
   getTripIdFromPath,
+  isPlanPath,
 } from './lib/tripLink'
 import { getOrCreateAnonymousUser } from './lib/userIdentity'
 
@@ -93,25 +96,34 @@ function App() {
     setPathname(getPathname())
   }
 
-  if (isBootstrappingAccess) {
-    return (
-      <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
-        <section className="mx-auto max-w-md rounded-xl border border-slate-300 bg-white p-7 sm:p-8">
-          <p className="text-sm font-medium text-slate-700">{t('access.checking')}</p>
-        </section>
-      </main>
-    )
+  function renderContent() {
+    if (isBootstrappingAccess) {
+      return (
+        <main className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:px-6 sm:py-10">
+          <section className="mx-auto max-w-md rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-7 sm:p-8">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('access.checking')}</p>
+          </section>
+        </main>
+      )
+    }
+
+    if (!isAccessGranted) {
+      return <AccessGate onAccessGranted={() => setIsAccessGranted(true)} />
+    }
+
+    if (tripId) {
+      if (isPlanPath(pathname)) {
+        return <TripPlanPage tripId={tripId} onNavigate={navigate} />
+      }
+      return <TripPage tripId={tripId} onNavigate={navigate} />
+    }
+
+    return <LandingPage onNavigate={navigate} />
   }
 
-  if (!isAccessGranted) {
-    return <AccessGate onAccessGranted={() => setIsAccessGranted(true)} />
-  }
-
-  if (tripId) {
-    return <TripPage tripId={tripId} />
-  }
-
-  return <LandingPage onNavigate={navigate} />
+  return <DarkModeProvider>{renderContent()}</DarkModeProvider>
 }
 
 export default App
+
+

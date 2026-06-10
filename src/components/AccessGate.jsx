@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { storeAccessToken, verifyAccessCode } from '../lib/supabaseBackend'
 
@@ -44,11 +44,18 @@ function AccessGate({ onAccessGranted }) {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
-      <section className="mx-auto max-w-md rounded-xl border border-slate-300 bg-white p-7 sm:p-8">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">Private Access</p>
-        <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-950">Enter passcode</h1>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:px-6 sm:py-10">
+      <section className="mx-auto max-w-md rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-7 shadow-md shadow-slate-200/70 dark:shadow-none sm:p-8">
+        <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-100 dark:border-orange-900">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+
+        <p className="inline-flex border-l-2 border-orange-500 pl-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Private Access</p>
+        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white">Enter passcode</h1>
+        <p className="mt-2 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
           This app is protected with a shared passcode.
         </p>
 
@@ -63,16 +70,16 @@ function AccessGate({ onAccessGranted }) {
                 setAccessError('')
               }
             }}
-            className="h-11 rounded-md border border-slate-400 bg-white px-3 text-slate-900 outline-none transition duration-150 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+            className="h-11 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none transition duration-150 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
             placeholder="Passcode"
           />
 
-          {accessError && <p className="text-xs font-medium text-rose-700">{accessError}</p>}
+          {accessError && <p className="text-xs font-medium text-rose-700 dark:text-rose-400">{accessError}</p>}
 
           <button
             type="submit"
             disabled={isVerifyingAccess}
-            className="h-11 rounded-md bg-orange-500 px-4 text-sm font-semibold text-white transition duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-orange-300"
+            className="h-11 cursor-pointer rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white shadow-sm shadow-orange-200 dark:shadow-none transition duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-orange-300 disabled:shadow-none"
           >
             {isVerifyingAccess ? 'Checking...' : 'Continue'}
           </button>
@@ -83,3 +90,4 @@ function AccessGate({ onAccessGranted }) {
 }
 
 export default AccessGate
+
