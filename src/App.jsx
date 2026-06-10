@@ -89,7 +89,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [tripId, pathname])
+  }, [tripId])
 
   function navigate(path) {
     window.history.pushState({}, '', path)
