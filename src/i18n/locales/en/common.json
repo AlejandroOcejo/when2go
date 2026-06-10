@@ -4,7 +4,8 @@
   },
   "badge": {
     "mvp": "MVP",
-    "liveTrip": "Live trip"
+    "liveTrip": "Live trip",
+    "tripClosed": "Closed"
   },
   "footer": {
     "tagline": "Made for easier group trip planning.",
@@ -50,7 +51,28 @@
     "noParticipantsTitle": "No participants in this trip",
     "noParticipantsBody": "Ask the organizer to recreate the trip and add participant names first.",
     "youAre": "You are",
-    "switchUser": "Switch user"
+    "switchUser": "Switch user",
+    "readyCount": "{{confirmed}} of {{total}} ready",
+    "markReady": "Mark as ready",
+    "ready": "Ready",
+    "confirming": "Saving...",
+    "closeTrip": "Close trip",
+    "closingTrip": "Closing...",
+    "closedBanner": "Trip dates are locked",
+    "closedHint": "Dates are set — now plan the details with your group.",
+    "planTrip": "Plan your trip",
+    "clearMyDays": "Clear my days",
+    "editDates": "Edit dates",
+    "editDatesConfirm": "Reopen your dates?",
+    "editDatesConfirmAction": "Yes, reopen",
+    "confirmCloseTitle": "Lock in the dates?",
+    "confirmCloseBody": "Everyone's availability will be locked in. This can't be undone.",
+    "confirmCloseAction": "Close trip",
+    "confirmCloseCancel": "Cancel",
+    "closedOverlayTitle": "Dates confirmed!",
+    "closedOverlayParticipants_one": "{{count}} participant",
+    "closedOverlayParticipants_other": "{{count}} participants",
+    "closedOverlayDismiss": "Back to trip"
   },
   "calendar": {
     "title": "When can you travel?",
@@ -61,7 +83,9 @@
     "mostSelected": "Most selected days",
     "noSelections": "No selections yet.",
     "multipleDates": "Multiple dates",
-    "dateRange": "Date range"
+    "dateRange": "Date range",
+    "lockedTitle": "Selected dates",
+    "lockedSubtitle": "This trip has been closed. Dates are locked."
   },
   "userPicker": {
     "title": "Who are you?",
@@ -73,5 +97,55 @@
     "empty": "No dates selected yet.",
     "topMatch": "Top match",
     "available": "{{count}} available"
+  },
+  "schedule": {
+    "title": "Trip schedule",
+    "subtitle": "Plan activities for each day. Hover a time slot to add something.",
+    "add": "Add",
+    "activityPlaceholder": "Activity name…",
+    "removeActivity": "Remove activity",
+    "noDates": "No availability dates found.",
+    "noDatesHint": "Make sure participants have selected dates in the trip calendar."
+  },
+  "plan": {
+    "eyebrow": "Dates confirmed",
+    "backToDates": "Back to dates",
+    "confirmedCount": "{{confirmed}} of {{total}} confirmed",
+    "tab": {
+      "flights": { "icon": "✈", "label": "Flights" },
+      "hotels": { "icon": "🏨", "label": "Hotels" },
+      "agenda": { "icon": "📅", "label": "Agenda" }
+    }
+  },
+  "flights": {
+    "title": "Search flights",
+    "subtitle": "Find the best flights for your group",
+    "roundTrip": "Round trip",
+    "oneWay": "One way",
+    "from": "From",
+    "to": "To",
+    "swap": "Swap origin and destination",
+    "departure": "Departure",
+    "return": "Return",
+    "passengers": "Passengers",
+    "adultsLabel_one": "{{count}} adult",
+    "adultsLabel_other": "{{count}} adults",
+    "addPassenger": "Add passenger",
+    "removePassenger": "Remove passenger",
+    "searchButton": "Search on Skyscanner",
+    "disclaimer": "Opens Skyscanner in a new tab with your trip dates pre-filled."
+  },
+  "hotels": {
+    "title": "Search accommodation",
+    "subtitle": "Find hotels for your group",
+    "destination": "Destination",
+    "destinationPlaceholder": "City or area, e.g. Amsterdam",
+    "checkin": "Check-in",
+    "checkout": "Check-out",
+    "guests": "Guests",
+    "guestsLabel_one": "{{count}} guest",
+    "guestsLabel_other": "{{count}} guests",
+    "searchButton": "Search on Booking.com",
+    "disclaimer": "Opens Booking.com in a new tab with your trip dates pre-filled."
   }
 }

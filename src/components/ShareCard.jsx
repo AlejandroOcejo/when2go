@@ -1,9 +1,11 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { getTripEmoji } from '../lib/tripEmoji'
 import { trackEvent } from '../lib/telemetry'
 
 function ShareCard({ tripId, tripName, shareLink }) {
   const { t } = useTranslation()
+  const emoji = getTripEmoji(tripName)
   const [shareCardOpen, setShareCardOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -19,9 +21,10 @@ function ShareCard({ tripId, tripName, shareLink }) {
   }
 
   return (
-    <section className="mx-auto max-w-3xl rounded-xl border border-slate-300 bg-white p-6 sm:p-7">
+    <section className="mx-auto max-w-3xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 shadow-md shadow-slate-200/70 dark:shadow-none sm:p-7">
       <div className="flex items-center gap-2">
-        <h1 className="min-w-0 flex-1 truncate text-2xl font-extrabold leading-tight tracking-tight text-slate-950 sm:text-3xl">
+        <h1 className="min-w-0 flex-1 truncate text-2xl font-extrabold leading-tight tracking-tight text-slate-950 dark:text-white sm:text-3xl">
+          {emoji && <span className="mr-2">{emoji}</span>}
           {tripName}
         </h1>
 
@@ -35,7 +38,7 @@ function ShareCard({ tripId, tripName, shareLink }) {
           <button
             type="button"
             onClick={handleCopyLink}
-            className="h-10 rounded-md bg-orange-500 px-3 text-sm font-semibold text-white transition duration-150 hover:bg-orange-600 active:scale-[0.99]"
+            className="h-10 cursor-pointer rounded-lg bg-orange-500 px-3 text-sm font-semibold text-white shadow-sm shadow-orange-200 dark:shadow-none transition duration-150 hover:bg-orange-600 active:scale-[0.99]"
           >
             {copied ? t('trip.copied') : t('trip.copyLink')}
           </button>
@@ -45,7 +48,7 @@ function ShareCard({ tripId, tripName, shareLink }) {
           type="button"
           onClick={() => setShareCardOpen((current) => !current)}
           aria-label={shareCardOpen ? t('trip.collapseCard') : t('trip.expandCard')}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-400 text-slate-700 transition duration-150 hover:bg-slate-100"
+          className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 transition duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300"
         >
           <svg
             viewBox="0 0 20 20"
@@ -70,7 +73,7 @@ function ShareCard({ tripId, tripName, shareLink }) {
         }`}
       >
         <div className="min-h-0">
-          <p className="mt-4 text-sm leading-relaxed text-slate-600">
+          <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
             {t('trip.shareSubtitle')}
           </p>
           <div className="mt-3 flex gap-2">
@@ -78,13 +81,13 @@ function ShareCard({ tripId, tripName, shareLink }) {
               readOnly
               value={shareLink}
               onFocus={(event) => event.target.select()}
-              className="h-10 flex-1 rounded-md border border-slate-400 bg-white px-3 text-sm text-slate-800"
+              className="h-10 flex-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 text-sm text-slate-600 dark:text-slate-300 outline-none"
               aria-label={t('trip.shareInputAria')}
             />
             <button
               type="button"
               onClick={handleCopyLink}
-              className={`h-10 rounded-md bg-orange-500 px-3 text-sm font-semibold text-white transition-[background-color,transform,opacity] duration-200 ease-out hover:bg-orange-600 active:scale-[0.99] ${
+              className={`h-10 cursor-pointer rounded-md bg-orange-500 px-3 text-sm font-semibold text-white transition-[background-color,transform,opacity] duration-200 ease-out hover:bg-orange-600 active:scale-[0.99] ${
                 shareCardOpen
                   ? 'translate-y-0 opacity-100'
                   : 'pointer-events-none -translate-y-1 opacity-0'
@@ -93,7 +96,7 @@ function ShareCard({ tripId, tripName, shareLink }) {
               {copied ? t('trip.copied') : t('trip.copyLink')}
             </button>
           </div>
-          <p className={`mt-2 text-xs transition duration-150 ${copied ? 'text-emerald-700' : 'text-slate-500'}`}>
+          <p className={`mt-2 text-xs transition duration-150 ${copied ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
             {copied ? t('trip.copiedHint') : t('trip.shareHint')}
           </p>
         </div>
@@ -103,3 +106,6 @@ function ShareCard({ tripId, tripName, shareLink }) {
 }
 
 export default ShareCard
+
+
+
