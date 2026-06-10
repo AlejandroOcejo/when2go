@@ -8,7 +8,7 @@ on:
       - 'src/**'
       - 'public/**'
       - 'index.html'
-      - 'capacitor.config.ts'
+      - 'capacitor.config.json'
       - 'package.json'
       - 'vite.config.js'
 
@@ -36,13 +36,21 @@ jobs:
       - name: Add Capacitor iOS platform
         run: npx cap add ios
 
+      - name: Show iOS structure
+        run: find ios -maxdepth 3 | sort
+
       - name: Install CocoaPods
-        run: cd ios/App && pod install --repo-update
+        run: |
+          PODFILE_DIR=$(find ios -name "Podfile" -exec dirname {} \; | head -1)
+          echo "Podfile found at: $PODFILE_DIR"
+          cd "$PODFILE_DIR" && pod install --repo-update
 
       - name: Build app (unsigned)
         run: |
+          WORKSPACE=$(find ios -name "*.xcworkspace" | head -1)
+          echo "Workspace: $WORKSPACE"
           xcodebuild archive \
-            -workspace ios/App/App.xcworkspace \
+            -workspace "$WORKSPACE" \
             -scheme App \
             -configuration Release \
             -archivePath $RUNNER_TEMP/when2go.xcarchive \
