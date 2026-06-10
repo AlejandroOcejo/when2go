@@ -307,7 +307,7 @@ export default async function handler(req, res) {
       const hour = Number(body.hour)
       const title = String(body.title || '').trim()
       const userId = String(body.userId || '').trim() || null
-      if (!date || !title || !Number.isInteger(hour) || hour < 0 || hour > 23) {
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !title || title.length > 200 || !Number.isInteger(hour) || hour < 0 || hour > 23) {
         return sendJson(res, 400, { error: 'invalid_activity_params' })
       }
       const { data, error } = await supabaseAdmin.rpc('add_trip_activity_v2', {

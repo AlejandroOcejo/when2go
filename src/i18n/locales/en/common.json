@@ -61,6 +61,14 @@
     "closedBanner": "Trip dates are locked",
     "closedHint": "Dates are set — now plan the details with your group.",
     "planTrip": "Plan your trip",
+    "clearMyDays": "Clear my days",
+    "editDates": "Edit dates",
+    "editDatesConfirm": "Reopen your dates?",
+    "editDatesConfirmAction": "Yes, reopen",
+    "confirmCloseTitle": "Lock in the dates?",
+    "confirmCloseBody": "Everyone's availability will be locked in. This can't be undone.",
+    "confirmCloseAction": "Close trip",
+    "confirmCloseCancel": "Cancel",
     "closedOverlayTitle": "Dates confirmed!",
     "closedOverlayParticipants_one": "{{count}} participant",
     "closedOverlayParticipants_other": "{{count}} participants",
@@ -100,7 +108,7 @@
     "noDatesHint": "Make sure participants have selected dates in the trip calendar."
   },
   "plan": {
-    "eyebrow": "Trip planning",
+    "eyebrow": "Dates confirmed",
     "backToDates": "Back to dates",
     "confirmedCount": "{{confirmed}} of {{total}} confirmed",
     "tab": {

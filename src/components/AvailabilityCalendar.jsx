@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+﻿import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { DayPicker } from 'react-day-picker'
 import { useTranslation } from 'react-i18next'
 import { trackEvent } from '../lib/telemetry'
@@ -7,37 +7,37 @@ const BRAND_ORANGE_RGB = '249, 115, 22'
 const BRAND_ORANGE_DARK = '#ea580c'
 
 const DAY_BUTTON_CLASSES =
-  'relative inline-flex h-10 w-10 min-h-10 min-w-10 max-h-10 max-w-10 aspect-square box-border items-center justify-center rounded-md p-0 text-sm font-semibold text-slate-900 hover:bg-slate-100 active:scale-[0.98] transition-[background-color,transform,color] duration-150 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-300 disabled:opacity-60 disabled:active:scale-100'
+  'relative inline-flex h-10 w-10 min-h-10 min-w-10 max-h-10 max-w-10 aspect-square box-border cursor-pointer items-center justify-center rounded-md p-0 text-sm font-semibold text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-[background-color,transform,color] duration-150 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-300 dark:disabled:text-slate-600 disabled:opacity-60 disabled:active:scale-100'
 
 const SELECTED_OUTLINE_CLASS =
-  `bg-transparent text-slate-900 shadow-[inset_0_0_0_2px_${BRAND_ORANGE_DARK}]`
+  `bg-transparent text-slate-900 dark:text-slate-100 shadow-[inset_0_0_0_2px_${BRAND_ORANGE_DARK}]`
 
 const SHARED_CLASS_NAMES = {
   root: 'rdp-root w-full',
   months: 'relative flex flex-col w-fit mx-auto',
   month: 'w-fit space-y-3',
   month_caption: 'relative flex items-center justify-center py-2',
-  caption_label: 'pointer-events-none relative z-0 text-base font-semibold text-slate-900',
+  caption_label: 'pointer-events-none relative z-0 text-base font-semibold text-slate-900 dark:text-slate-100',
   nav: 'absolute inset-x-0 z-10 flex items-center justify-between px-1',
-  button_previous: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150 disabled:pointer-events-none',
-  button_next: 'pointer-events-auto h-8 w-8 rounded-sm border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 transition-colors duration-150',
+  button_previous: 'pointer-events-auto cursor-pointer h-8 w-8 rounded-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-150 disabled:pointer-events-none',
+  button_next: 'pointer-events-auto cursor-pointer h-8 w-8 rounded-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-150',
   month_grid: 'w-full border-collapse',
   weekdays: 'grid grid-cols-7 gap-1',
-  weekday: 'py-1 text-center text-xs font-semibold text-slate-600',
+  weekday: 'py-1 text-center text-xs font-semibold text-slate-600 dark:text-slate-400',
   week: 'grid grid-cols-7 gap-x-1 mb-[2px] last:mb-0',
   day: 'flex items-center justify-center p-0',
   day_button: DAY_BUTTON_CLASSES,
-  selected: 'text-slate-900 font-semibold',
-  disabled: 'text-slate-300',
-  today: 'text-slate-800',
-  outside: 'text-slate-300',
+  selected: 'text-slate-900 dark:text-slate-100 font-semibold',
+  disabled: 'text-slate-300 dark:text-slate-600',
+  today: 'text-slate-800 dark:text-slate-200',
+  outside: 'text-slate-300 dark:text-slate-600',
 }
 
 const RANGE_CLASS_NAMES = {
   ...SHARED_CLASS_NAMES,
-  range_start: 'text-slate-900 font-semibold',
-  range_middle: 'text-slate-900 font-semibold',
-  range_end: 'text-slate-900 font-semibold',
+  range_start: 'text-slate-900 dark:text-slate-100 font-semibold',
+  range_middle: 'text-slate-900 dark:text-slate-100 font-semibold',
+  range_end: 'text-slate-900 dark:text-slate-100 font-semibold',
 }
 
 // Context used by module-level components to access per-render calendar state
@@ -163,7 +163,7 @@ function CalendarDayButton(props) {
           className={`pointer-events-none absolute -left-1 -top-1 rounded-sm border px-0.5 text-[8px] font-semibold leading-none shadow-sm transition-colors duration-150 ${
             isFullyMatched
               ? 'border-orange-700 bg-orange-600 text-white'
-              : 'border-slate-300 bg-white text-slate-600'
+              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300'
           }`}
           title={isFullyMatched ? t('groupAvailability.topMatch') : undefined}
         >
@@ -279,7 +279,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
 
   return (
     <CalendarCtx.Provider value={ctxValue}>
-      <section className="rounded-xl border-2 border-slate-300 bg-white p-6 sm:p-8">
+      <section className="rounded-xl border-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 sm:p-8">
         <style>
           {`@keyframes rdp-slide-in-from-right { from { opacity: 0.15; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
         @keyframes rdp-slide-out-to-left { from { opacity: 1; transform: translateX(0); } to { opacity: 0.15; transform: translateX(-100%); } }
@@ -293,10 +293,10 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
       .rdp-month { overflow: hidden; }`}
         </style>
 
-        <h2 className="text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-[28px]">
+        <h2 className="text-2xl font-bold leading-tight tracking-tight text-slate-950 dark:text-white sm:text-[28px]">
           {readOnly ? t('calendar.lockedTitle') : t('calendar.title')}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+        <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
           {readOnly ? t('calendar.lockedSubtitle') : t('calendar.subtitle')}
         </p>
 
@@ -304,8 +304,8 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
           <p
             className={`mt-3 inline-flex rounded-md border px-2.5 py-1 text-xs font-medium transition duration-150 ${
               selectedCount > 0
-                ? 'border-orange-500 bg-white text-orange-700'
-                : 'border-slate-300 bg-white text-slate-600'
+                ? 'border-orange-500 bg-white dark:bg-slate-900 text-orange-700 dark:text-orange-400'
+                : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400'
             }`}
           >
             {selectedCount === 0
@@ -316,7 +316,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
 
         {!readOnly && (
           <div className="mt-6 flex w-full justify-center">
-            <div className="relative inline-grid w-full max-w-[300px] grid-cols-2 rounded-md border border-slate-400 bg-white p-1">
+            <div className="relative inline-grid w-full max-w-[300px] grid-cols-2 rounded-md border border-slate-400 dark:border-slate-600 bg-white dark:bg-slate-800 p-1">
               <span
                 aria-hidden="true"
                 className={`pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-sm bg-orange-500 transition-transform duration-250 ease-out ${
@@ -329,8 +329,8 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
                   setMode('multiple')
                   setRangeDraft(undefined)
                 }}
-                className={`relative z-10 h-8 rounded-sm px-3 text-xs font-semibold transition-colors duration-200 ${
-                  mode === 'multiple' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                className={`relative z-10 cursor-pointer h-8 rounded-sm px-3 text-xs font-semibold transition-colors duration-200 ${
+                  mode === 'multiple' ? 'text-white' : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {t('calendar.multipleDates')}
@@ -341,8 +341,8 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
                   setMode('range')
                   setRangeDraft(undefined)
                 }}
-                className={`relative z-10 h-8 rounded-sm px-3 text-xs font-semibold transition-colors duration-200 ${
-                  mode === 'range' ? 'text-white' : 'text-slate-700 hover:text-slate-900'
+                className={`relative z-10 cursor-pointer h-8 rounded-sm px-3 text-xs font-semibold transition-colors duration-200 ${
+                  mode === 'range' ? 'text-white' : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 {t('calendar.dateRange')}
@@ -387,7 +387,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
               onChange(mergeDateKeys(selectedDates, expandRange(start, end)))
             }}
             modifiers={{ existingSelection: selectedDateObjects }}
-            modifiersClassNames={{ existingSelection: 'text-slate-900 font-semibold' }}
+            modifiersClassNames={{ existingSelection: 'text-slate-900 dark:text-slate-100 font-semibold' }}
             components={PICKER_COMPONENTS}
             classNames={RANGE_CLASS_NAMES}
           />
@@ -398,3 +398,5 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
 }
 
 export default AvailabilityCalendar
+
+

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import AppFooter from '../components/AppFooter'
 import AppHeader from '../components/AppHeader'
@@ -109,7 +109,7 @@ function LandingPage({ onNavigate }) {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:px-6 sm:py-10">
       <style>
         {`@keyframes participant-pop-in {
           0% { opacity: 0; transform: translateY(4px) scale(0.94); }
@@ -119,22 +119,22 @@ function LandingPage({ onNavigate }) {
       </style>
 
       <AppHeader>
-        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
           Invite only
         </span>
       </AppHeader>
 
-      <section className="mx-auto max-w-2xl rounded-xl border border-slate-300 bg-white p-7 sm:p-10">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">{t('landing.eyebrow')}</p>
-        <h1 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight text-slate-950 sm:text-5xl">
+      <section className="mx-auto max-w-3xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-7 shadow-md shadow-slate-200/70 dark:shadow-none sm:p-10">
+        <p className="inline-flex border-l-2 border-orange-500 pl-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600 dark:text-slate-400">{t('landing.eyebrow')}</p>
+        <h1 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight text-slate-950 dark:text-white sm:text-5xl">
           {t('landing.title')}
         </h1>
-        <p className="mt-4 text-sm leading-relaxed text-slate-600 sm:text-base">
+        <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400 sm:text-base">
           {t('landing.subtitle')}
         </p>
 
         <form className="mt-8 flex flex-col gap-4" onSubmit={handleCreateTrip}>
-          <label htmlFor="trip-name" className="text-sm font-medium text-slate-800">
+          <label htmlFor="trip-name" className="text-sm font-medium text-slate-800 dark:text-slate-200">
             {t('landing.tripNameLabel')}
           </label>
           <input
@@ -143,11 +143,11 @@ function LandingPage({ onNavigate }) {
             value={tripName}
             onChange={(event) => setTripName(event.target.value)}
             maxLength={64}
-            className="h-11 rounded-md border border-slate-400 bg-white px-3 text-slate-900 outline-none transition duration-150 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+            className="h-11 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none transition duration-150 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
             required
           />
 
-          <label htmlFor="participant-name" className="mt-2 text-sm font-medium text-slate-800">
+          <label htmlFor="participant-name" className="mt-2 text-sm font-medium text-slate-800 dark:text-slate-200">
             {t('landing.participantsLabel')}
           </label>
           <div className="flex gap-2">
@@ -158,12 +158,12 @@ function LandingPage({ onNavigate }) {
               onChange={(event) => setParticipantName(event.target.value)}
               onKeyDown={handleParticipantKeyDown}
               maxLength={24}
-              className="h-11 flex-1 rounded-md border border-slate-400 bg-white px-3 text-slate-900 outline-none transition duration-150 focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+              className="h-11 flex-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none transition duration-150 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
             />
             <button
               type="button"
               onClick={handleAddParticipant}
-              className="h-11 rounded-md border border-slate-400 bg-white px-4 text-sm font-semibold text-slate-800 transition duration-150 hover:bg-slate-100 active:scale-[0.99]"
+              className="h-11 cursor-pointer rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 text-sm font-semibold text-slate-800 dark:text-slate-200 transition duration-150 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.99]"
             >
               {t('landing.add')}
             </button>
@@ -173,7 +173,7 @@ function LandingPage({ onNavigate }) {
             {participants.map((name) => (
               <span
                 key={name}
-                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-800 transition-transform duration-150"
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-800 dark:text-slate-200 transition-transform duration-150"
                 style={
                   recentlyAddedParticipant === name
                     ? { animation: 'participant-pop-in 220ms cubic-bezier(0.2, 0.9, 0.2, 1)' }
@@ -189,7 +189,7 @@ function LandingPage({ onNavigate }) {
                 <button
                   type="button"
                   onClick={() => removeParticipant(name)}
-                  className="rounded-sm px-1 text-slate-500 hover:bg-slate-200 hover:text-slate-800"
+                  className="cursor-pointer rounded-sm px-1 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-800 dark:hover:text-slate-200"
                   aria-label={t('landing.removeParticipant', { name })}
                 >
                   ×
@@ -198,10 +198,10 @@ function LandingPage({ onNavigate }) {
             ))}
           </div>
 
-          <p className="text-xs text-slate-500">{t('landing.participantsHint')}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{t('landing.participantsHint')}</p>
 
-          <div className="mt-1 rounded-md border border-slate-300 bg-slate-50 p-3">
-            <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-800">
+          <div className="mt-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3.5">
+            <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-800 dark:text-slate-200">
               <input
                 type="checkbox"
                 checked={limitToMonth}
@@ -218,7 +218,7 @@ function LandingPage({ onNavigate }) {
 
                   setLimitToMonth(checked)
                 }}
-                className="h-4 w-4 rounded-[7px] border-slate-400 accent-orange-300 transition-[transform,filter] duration-150 ease-out checked:scale-105 checked:brightness-95 focus:ring-orange-300"
+                className="h-4 w-4 cursor-pointer rounded-[7px] border-slate-400 accent-orange-300 transition-[transform,filter] duration-150 ease-out checked:scale-105 checked:brightness-95 focus:ring-orange-300"
               />
               {t('landing.limitToMonthToggle')}
             </label>
@@ -229,7 +229,7 @@ function LandingPage({ onNavigate }) {
               }`}
             >
               <div className="min-h-0">
-                <label className="text-xs font-medium uppercase tracking-wide text-slate-600">
+                <label className="text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
                   {t('landing.limitToMonthLabel')}
                 </label>
 
@@ -238,7 +238,7 @@ function LandingPage({ onNavigate }) {
                     <select
                       value={selectedLimitedMonth}
                       onChange={(event) => updateLimitedMonth(selectedLimitedYear, event.target.value)}
-                      className="h-10 w-full appearance-none rounded-md border border-slate-400 bg-white pl-3 pr-10 text-sm font-medium text-slate-900 shadow-none outline-none transition-colors duration-150 focus:border-orange-500 focus:ring-0 focus:shadow-none"
+                      className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-3 pr-10 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-none outline-none transition-colors duration-150 focus:border-orange-500 focus:ring-0 focus:shadow-none"
                       disabled={!limitToMonth}
                       required={limitToMonth}
                     >
@@ -247,7 +247,7 @@ function LandingPage({ onNavigate }) {
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
-                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500">
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500 dark:text-slate-400">
                       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4" aria-hidden="true">
                         <path d="M6 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -258,7 +258,7 @@ function LandingPage({ onNavigate }) {
                     <select
                       value={selectedLimitedYear}
                       onChange={(event) => updateLimitedMonth(event.target.value, selectedLimitedMonth)}
-                      className="h-10 w-full appearance-none rounded-md border border-slate-400 bg-white pl-3 pr-10 text-sm font-medium text-slate-900 shadow-none outline-none transition-colors duration-150 focus:border-orange-500 focus:ring-0 focus:shadow-none"
+                      className="h-10 w-full cursor-pointer appearance-none rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-3 pr-10 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-none outline-none transition-colors duration-150 focus:border-orange-500 focus:ring-0 focus:shadow-none"
                       disabled={!limitToMonth}
                       required={limitToMonth}
                     >
@@ -267,7 +267,7 @@ function LandingPage({ onNavigate }) {
                         <option key={year} value={year}>{year}</option>
                       ))}
                     </select>
-                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500">
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-500 dark:text-slate-400">
                       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-4 w-4" aria-hidden="true">
                         <path d="M6 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -277,13 +277,13 @@ function LandingPage({ onNavigate }) {
               </div>
             </div>
 
-            <p className="mt-2 text-xs text-slate-600">{t('landing.limitToMonthHint')}</p>
+            <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">{t('landing.limitToMonthHint')}</p>
           </div>
 
           <button
             type="submit"
             disabled={participants.length === 0 || isCreatingTrip || (limitToMonth && !limitedMonth)}
-            className="h-11 rounded-md bg-orange-500 px-4 text-sm font-semibold text-white transition duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-orange-300"
+            className="h-11 cursor-pointer rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white shadow-sm shadow-orange-200 dark:shadow-none transition duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-orange-300 disabled:shadow-none"
           >
             {isCreatingTrip ? 'Creating trip...' : t('landing.createTrip')}
           </button>
@@ -291,27 +291,30 @@ function LandingPage({ onNavigate }) {
       </section>
 
       {recentTrips.length > 0 && (
-        <section className="mx-auto mt-5 max-w-2xl rounded-xl border border-slate-300 bg-white p-5 sm:p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">{t('landing.recentTripsTitle')}</h2>
+        <section className="mx-auto mt-5 max-w-3xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-md shadow-slate-200/70 dark:shadow-none sm:p-6">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('landing.recentTripsTitle')}</h2>
           <div className="mt-3 space-y-2">
             {recentTrips.map((recentTrip) => (
               <button
                 key={recentTrip.id}
                 type="button"
                 onClick={() => onNavigate(recentTrip.path)}
-                className="flex w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-left transition duration-150 hover:bg-slate-50"
+                className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-left transition duration-150 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
               >
-                <span className="truncate text-sm font-medium text-slate-900">{recentTrip.name}</span>
-                <span className="ml-3 text-xs text-slate-500">{t('landing.openRecent')}</span>
+                <span className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{recentTrip.name}</span>
+                <span className="ml-3 shrink-0 text-xs text-orange-500 dark:text-orange-400 font-semibold">{t('landing.openRecent')}</span>
               </button>
             ))}
           </div>
         </section>
       )}
 
-      <AppFooter maxWidth="max-w-2xl" />
+      <AppFooter maxWidth="max-w-3xl" />
     </main>
   )
 }
 
 export default LandingPage
+
+
+

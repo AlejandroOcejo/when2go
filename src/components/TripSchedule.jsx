@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+﻿import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 const SCHEDULE_START_HOUR = 7
@@ -44,20 +44,20 @@ function HourRow({ date, hour, activities, onAdd, onRemove }) {
 
   return (
     <div className="group grid items-start gap-x-3 py-1" style={{ gridTemplateColumns: '3.5rem 1fr' }}>
-      <span className="pt-1.5 text-right font-mono text-xs text-slate-400 tabular-nums leading-none">
+      <span className="pt-1.5 text-right font-mono text-xs text-slate-400 dark:text-slate-500 tabular-nums leading-none">
         {String(hour).padStart(2, '0')}:00
       </span>
-      <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-1.5 pb-0.5 min-h-[28px]">
+      <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 dark:border-slate-700 pt-1.5 pb-0.5 min-h-[28px]">
         {activities.map((activity) => (
           <span
             key={activity.id}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1 text-xs text-slate-700 dark:text-slate-300"
           >
             <span>{activity.title}</span>
             <button
               type="button"
               onClick={() => onRemove(activity.id)}
-              className="leading-none text-slate-400 hover:text-rose-600 transition-colors duration-100"
+              className="cursor-pointer leading-none text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors duration-100"
               aria-label={t('schedule.removeActivity')}
             >
               ×
@@ -76,13 +76,13 @@ function HourRow({ date, hour, activities, onAdd, onRemove }) {
             onBlur={commit}
             placeholder={t('schedule.activityPlaceholder')}
             maxLength={100}
-            className="h-6 w-36 rounded border border-orange-400 bg-white px-2 text-xs text-slate-800 placeholder-slate-400 outline-none focus:ring-1 focus:ring-orange-300"
+            className="h-6 w-36 rounded border border-orange-400 bg-white dark:bg-slate-800 px-2 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:ring-1 focus:ring-orange-300"
           />
         ) : (
           <button
             type="button"
             onClick={openInput}
-            className={`rounded px-1.5 py-0.5 text-xs font-medium text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-colors duration-100 ${
+            className={`cursor-pointer rounded px-1.5 py-0.5 text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/40 transition-colors duration-100 ${
               hasActivities ? '' : 'opacity-0 group-hover:opacity-100'
             }`}
           >
@@ -107,9 +107,9 @@ function DayCard({ dateKey, activities, onAdd, onRemove }) {
   }, {})
 
   return (
-    <div className="overflow-hidden rounded-xl border-2 border-slate-200 bg-white">
-      <div className="border-b border-slate-200 bg-slate-50 px-5 py-3.5">
-        <h3 className="font-bold text-slate-900">{formatDateHeading(dateKey)}</h3>
+    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm shadow-slate-200/60 dark:shadow-none">
+      <div className="border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-5 py-3.5">
+        <h3 className="font-bold text-slate-900 dark:text-slate-100">{formatDateHeading(dateKey)}</h3>
       </div>
       <div className="px-4 py-2">
         {allHours.map((hour) => (
@@ -132,9 +132,9 @@ function TripSchedule({ scheduleDates, activities, onAdd, onRemove }) {
 
   if (scheduleDates.length === 0) {
     return (
-      <div className="overflow-hidden rounded-xl border-2 border-slate-200 bg-white p-10 text-center">
-        <p className="text-sm font-medium text-slate-500">{t('schedule.noDates')}</p>
-        <p className="mt-1 text-xs text-slate-400">{t('schedule.noDatesHint')}</p>
+      <div className="overflow-hidden rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-10 text-center">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{t('schedule.noDates')}</p>
+        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{t('schedule.noDatesHint')}</p>
       </div>
     )
   }
@@ -142,8 +142,8 @@ function TripSchedule({ scheduleDates, activities, onAdd, onRemove }) {
   return (
     <section className="mx-auto mt-5 max-w-3xl">
       <div className="mb-4">
-        <h2 className="text-xl font-bold text-slate-900">{t('schedule.title')}</h2>
-        <p className="mt-1 text-sm text-slate-600">{t('schedule.subtitle')}</p>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{t('schedule.title')}</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('schedule.subtitle')}</p>
       </div>
       <div className="space-y-4">
         {scheduleDates.map((dateKey) => (
@@ -161,3 +161,6 @@ function TripSchedule({ scheduleDates, activities, onAdd, onRemove }) {
 }
 
 export default TripSchedule
+
+
+

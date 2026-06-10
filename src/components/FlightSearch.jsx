@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 function toSkyscannerDate(dateKey) {
@@ -19,16 +19,22 @@ function buildSkyscannerUrl({ from, to, outbound, inbound, adults, isRoundTrip }
   return `${base}/${fromCode}/${toCode}/${out}/?${params}`
 }
 
+function formatDateShort(dateStr) {
+  if (!dateStr) return ''
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 function IataInput({ label, value, onChange, placeholder }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</label>
+      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</label>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4))}
         placeholder={placeholder}
-        className="h-12 rounded-lg border-2 border-slate-200 bg-white px-4 text-base font-semibold text-slate-900 placeholder-slate-300 outline-none transition-colors focus:border-orange-400 focus:ring-0"
+        className="h-12 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-base font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-300 dark:placeholder-slate-600 outline-none transition-colors focus:border-orange-400 focus:ring-0"
         spellCheck={false}
         autoCapitalize="characters"
         autoCorrect="off"
@@ -48,6 +54,7 @@ function FlightSearch({ scheduleDates, participantCount }) {
   const [outbound, setOutbound] = useState(earliest)
   const [inbound, setInbound] = useState(latest !== earliest ? latest : '')
   const [adults, setAdults] = useState(Math.max(1, participantCount ?? 1))
+  const [showDetails, setShowDetails] = useState(false)
 
   const datesSeededRef = useRef(Boolean(earliest))
   const adultsSeededRef = useRef(participantCount > 0)
@@ -83,138 +90,144 @@ function FlightSearch({ scheduleDates, participantCount }) {
     setAdults((n) => Math.max(1, Math.min(9, n + delta)))
   }
 
-  return (
-    <div className="overflow-hidden rounded-xl border-2 border-slate-200 bg-white">
-      {/* Header */}
-      <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-slate-900">{t('flights.title')}</h3>
-            <p className="mt-0.5 text-xs text-slate-500">{t('flights.subtitle')}</p>
-          </div>
-          <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-            Skyscanner
-          </span>
-        </div>
-      </div>
+  const dateSummary = outbound
+    ? `${formatDateShort(outbound)}${isRoundTrip && inbound ? ` → ${formatDateShort(inbound)}` : ''}`
+    : null
 
-      <form onSubmit={handleSearch} className="p-6 space-y-5">
-        {/* Round trip / One way toggle */}
-        <div className="flex gap-2">
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+      <form onSubmit={handleSearch} className="space-y-4 p-5">
+        <div className="flex items-center gap-2">
           {[true, false].map((rt) => (
             <button
               key={String(rt)}
               type="button"
               onClick={() => setIsRoundTrip(rt)}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors duration-150 ${
+              className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold transition-colors duration-150 ${
                 isRoundTrip === rt
                   ? 'border-orange-500 bg-orange-500 text-white'
-                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                  : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-500'
               }`}
             >
               {rt ? t('flights.roundTrip') : t('flights.oneWay')}
             </button>
           ))}
+          <span className="ml-auto rounded-full border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 dark:text-blue-400">
+            Skyscanner
+          </span>
         </div>
 
-        {/* From / To */}
-        <div className="flex items-end gap-3">
-          <div className="flex-1">
-            <IataInput
-              label={t('flights.from')}
-              value={from}
-              onChange={setFrom}
-              placeholder="e.g. MAD"
-            />
+        <div className="grid grid-cols-[1fr_auto] items-end gap-2 sm:flex sm:items-end sm:gap-3">
+          <div className="sm:flex-1">
+            <IataInput label={t('flights.from')} value={from} onChange={setFrom} placeholder="MAD" />
           </div>
           <button
             type="button"
             onClick={handleSwap}
             aria-label={t('flights.swap')}
-            className="mb-0.5 flex h-12 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-50"
+            className="flex h-12 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 6h10M3 6l3-3M3 6l3 3M13 10H3M13 10l-3-3M13 10l-3 3" />
             </svg>
           </button>
-          <div className="flex-1">
-            <IataInput
-              label={t('flights.to')}
-              value={to}
-              onChange={setTo}
-              placeholder="e.g. AMS"
-            />
+          <div className="sm:flex-1">
+            <IataInput label={t('flights.to')} value={to} onChange={setTo} placeholder="AMS" />
           </div>
         </div>
 
-        {/* Dates */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {t('flights.departure')}
-            </label>
-            <input
-              type="date"
-              value={outbound}
-              onChange={(e) => setOutbound(e.target.value)}
-              required
-              className="h-12 rounded-lg border-2 border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-orange-400"
-            />
-          </div>
-          {isRoundTrip && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {t('flights.return')}
-              </label>
-              <input
-                type="date"
-                value={inbound}
-                min={outbound}
-                onChange={(e) => setInbound(e.target.value)}
-                className="h-12 rounded-lg border-2 border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-orange-400"
-              />
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            className="flex w-full cursor-pointer items-center gap-2 rounded-lg py-1 text-sm text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+          >
+            <span className="flex-1 text-left">
+              {dateSummary ? (
+                <span>📅 {dateSummary} · 👥 {t('flights.adultsLabel', { count: adults })}</span>
+              ) : (
+                <span className="text-slate-400 dark:text-slate-500">{t('flights.departure')} &amp; {t('flights.passengers').toLowerCase()}</span>
+              )}
+            </span>
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${showDetails ? 'rotate-180' : ''}`}
+            >
+              <path d="M5 8l5 5 5-5" />
+            </svg>
+          </button>
+
+          <div
+            className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${
+              showDetails ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+            }`}
+          >
+            <div className="min-h-0">
+              <div className="space-y-3 pt-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                      {t('flights.departure')}
+                    </label>
+                    <input
+                      type="date"
+                      value={outbound}
+                      onChange={(e) => setOutbound(e.target.value)}
+                      required
+                      className="h-9 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-colors focus:border-orange-400"
+                    />
+                  </div>
+                  {isRoundTrip && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                        {t('flights.return')}
+                      </label>
+                      <input
+                        type="date"
+                        value={inbound}
+                        min={outbound}
+                        onChange={(e) => setInbound(e.target.value)}
+                        className="h-9 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-colors focus:border-orange-400"
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">{t('flights.passengers')}</span>
+                  <button
+                    type="button"
+                    onClick={() => adjustAdults(-1)}
+                    disabled={adults <= 1}
+                    aria-label={t('flights.removePassenger')}
+                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-base font-semibold text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    −
+                  </button>
+                  <span className="w-5 text-center text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">{adults}</span>
+                  <button
+                    type="button"
+                    onClick={() => adjustAdults(1)}
+                    disabled={adults >= 9}
+                    aria-label={t('flights.addPassenger')}
+                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-base font-semibold text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* Passengers */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {t('flights.passengers')}
-          </label>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => adjustAdults(-1)}
-              disabled={adults <= 1}
-              aria-label={t('flights.removePassenger')}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-slate-200 bg-white text-lg font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              −
-            </button>
-            <span className="w-6 text-center text-base font-semibold text-slate-900 tabular-nums">
-              {adults}
-            </span>
-            <button
-              type="button"
-              onClick={() => adjustAdults(1)}
-              disabled={adults >= 9}
-              aria-label={t('flights.addPassenger')}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-slate-200 bg-white text-lg font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              +
-            </button>
-            <span className="text-sm text-slate-500">
-              {t('flights.adultsLabel', { count: adults })}
-            </span>
           </div>
         </div>
 
-        {/* Search button */}
         <button
           type="submit"
           disabled={!outbound}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.68A2 2 0 012 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 9.91a16 16 0 006.18 6.18l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
@@ -225,10 +238,12 @@ function FlightSearch({ scheduleDates, participantCount }) {
           </svg>
         </button>
 
-        <p className="text-center text-xs text-slate-400">{t('flights.disclaimer')}</p>
+        <p className="text-center text-xs text-slate-400 dark:text-slate-500">{t('flights.disclaimer')}</p>
       </form>
     </div>
   )
 }
 
 export default FlightSearch
+
+
