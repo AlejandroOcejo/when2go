@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>when2go</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,6 +13,14 @@
       @custom-variant dark (&:where(.dark, .dark *));
       @theme {
         --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+      }
+      html {
+        background-color: #f8fafc;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      html.dark {
+        background-color: #0f172a;
       }
       .theme-transition,
       .theme-transition *,

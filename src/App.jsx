@@ -28,7 +28,7 @@ function App() {
   const [viewer] = useState(() => getOrCreateAnonymousUser())
   const [pathname, setPathname] = useState(() => getPathname())
   const [isAccessGranted, setIsAccessGranted] = useState(() => hasStoredAccessToken())
-  const [isBootstrappingAccess, setIsBootstrappingAccess] = useState(true)
+  const [isBootstrappingAccess, setIsBootstrappingAccess] = useState(() => !hasStoredAccessToken())
 
   const tripId = getTripIdFromPath(pathname)
 
@@ -52,8 +52,6 @@ function App() {
     let cancelled = false
 
     async function bootstrapAccessState() {
-      setIsBootstrappingAccess(true)
-
       try {
         if (tripId) {
           const accessToken = getAccessTokenFromSearch(window.location.search)
