@@ -211,7 +211,7 @@ const PICKER_COMPONENTS = {
   NextMonthButton: NavigationButton,
 }
 
-function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, lockedMonth, onChange, readOnly = false }) {
+function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, lockedMonth, onChange, readOnly = false, footer }) {
   const { t } = useTranslation()
   const [mode, setMode] = useState('multiple')
   const [rangeDraft, setRangeDraft] = useState(undefined)
@@ -389,6 +389,13 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
             components={PICKER_COMPONENTS}
             classNames={RANGE_CLASS_NAMES}
           />
+        )}
+
+        {footer && (
+          <>
+            <div className="mt-8 -mx-6 sm:-mx-8 border-t border-slate-100 dark:border-slate-800" />
+            <div className="mt-6">{footer}</div>
+          </>
         )}
       </section>
     </CalendarCtx.Provider>
