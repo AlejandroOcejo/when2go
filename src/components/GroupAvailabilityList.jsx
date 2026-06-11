@@ -70,10 +70,16 @@ function formatRange(startKey, endKey, locale) {
   return `${new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(start)} – ${new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(end)}`
 }
 
-function RangeRow({ start, end, users, isTop, isSelected, isClickable, totalUsers, onSelect, locale, topMatchLabel }) {
+function RangeRow({ start, end, users, isTop, isSelected, isClickable, totalUsers, onSelect, locale, topMatchLabel, enterDelay = 0, isNew = true, isExiting = false }) {
   const prevRef = useRef(isSelected)
   const [cardPopping, setCardPopping] = useState(false)
   const [badgePopping, setBadgePopping] = useState(false)
+  const [playEnter, setPlayEnter] = useState(true)
+
+  useEffect(() => {
+    const t = setTimeout(() => setPlayEnter(false), 300 + enterDelay)
+    return () => clearTimeout(t)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const wasSelected = prevRef.current
@@ -90,10 +96,20 @@ function RangeRow({ start, end, users, isTop, isSelected, isClickable, totalUser
     }
   }, [isSelected, isTop])
 
+  const animStyle = isExiting
+    ? { animation: 'range-row-exit 280ms cubic-bezier(0.2,0.9,0.3,1) both', pointerEvents: 'none' }
+    : cardPopping
+      ? { animation: 'range-select 320ms cubic-bezier(0.2,0.9,0.3,1) both' }
+      : playEnter
+        ? { animation: isNew
+            ? `range-row-enter 280ms cubic-bezier(0.2,0.9,0.3,1) ${enterDelay}ms both`
+            : 'range-row-update 180ms ease-out both' }
+        : undefined
+
   return (
     <div
       onClick={() => onSelect?.(start, end)}
-      style={cardPopping ? { animation: 'range-select 320ms cubic-bezier(0.2,0.9,0.3,1) both' } : undefined}
+      style={animStyle}
       className={`rounded-xl px-4 py-3 transition-[border-color,background-color,box-shadow] duration-200 ${
         isClickable ? 'cursor-pointer' : ''
       } ${
@@ -143,6 +159,10 @@ function RangeRow({ start, end, users, isTop, isSelected, isClickable, totalUser
   )
 }
 
+function rangesOverlap(a, b) {
+  return a.start <= b.end && b.start <= a.end
+}
+
 function GroupAvailabilityList({ availabilityRows, totalUsers, onSelectRange, selectedStart, selectedEnd }) {
   const { t, i18n } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
@@ -152,6 +172,45 @@ function GroupAvailabilityList({ availabilityRows, totalUsers, onSelectRange, se
     return groupConsecutiveDates(byDate)
   }, [availabilityRows])
 
+  const [displayRanges, setDisplayRanges] = useState(() =>
+    ranges.map(r => ({ ...r, isNew: true, isExiting: false }))
+  )
+
+  useEffect(() => {
+    setDisplayRanges(prev => {
+      const currentKeys = new Set(ranges.map(r => `${r.start}-${r.end}`))
+      const prevActive = prev.filter(r => !r.isExiting)
+      const prevActiveKeys = new Set(prevActive.map(r => `${r.start}-${r.end}`))
+
+      const result = []
+      for (const r of prev) {
+        if (r.isExiting) { result.push(r); continue }
+        if (currentKeys.has(`${r.start}-${r.end}`)) {
+          result.push({ ...r, isNew: false, isExiting: false })
+        } else {
+          const isUpdate = ranges.some(nr => rangesOverlap(nr, r))
+          if (!isUpdate) result.push({ ...r, isNew: false, isExiting: true })
+        }
+      }
+      for (const r of ranges) {
+        if (!prevActiveKeys.has(`${r.start}-${r.end}`)) {
+          const isNew = !prevActive.some(p => rangesOverlap(p, r))
+          result.push({ ...r, isNew, isExiting: false })
+        }
+      }
+      return result
+    })
+  }, [ranges])
+
+  useEffect(() => {
+    if (!displayRanges.some(r => r.isExiting)) return
+    const timer = setTimeout(
+      () => setDisplayRanges(prev => prev.filter(r => !r.isExiting)),
+      320
+    )
+    return () => clearTimeout(timer)
+  }, [displayRanges])
+
   // Auto-select the top match when ranges first load
   useEffect(() => {
     if (onSelectRange && !selectedStart && ranges.length > 0) {
@@ -159,13 +218,27 @@ function GroupAvailabilityList({ availabilityRows, totalUsers, onSelectRange, se
     }
   }, [ranges]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (ranges.length === 0) return null
+  const isEmpty = ranges.length === 0 && !displayRanges.some(r => r.isExiting)
 
-  const maxCount = ranges[0].users.length
+  if (isEmpty) {
+    return (
+      <section className="mx-auto mt-5 sm:mt-8 max-w-3xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-md shadow-slate-200/70 dark:shadow-none">
+        <div className="flex w-full items-center gap-3 px-5 py-3.5">
+          <span className="flex-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{t('groupAvailability.title')}</span>
+        </div>
+        <div className="border-t border-slate-200 dark:border-slate-700 px-5 py-4 text-sm text-slate-400 dark:text-slate-500">
+          {t('groupAvailability.empty')}
+        </div>
+      </section>
+    )
+  }
+
+  const activeDisplayRanges = displayRanges.filter(r => !r.isExiting)
+  const maxCount = activeDisplayRanges.length > 0 ? Math.max(...activeDisplayRanges.map(r => r.users.length)) : 0
   const isClickable = Boolean(onSelectRange)
 
   return (
-    <section className="mx-auto mt-5 max-w-3xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-md shadow-slate-200/70 dark:shadow-none">
+    <section className="mx-auto mt-5 sm:mt-8 max-w-3xl rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-md shadow-slate-200/70 dark:shadow-none">
       <style>{`
         @keyframes range-select {
           0%   { transform: scale(1); }
@@ -177,6 +250,18 @@ function GroupAvailabilityList({ availabilityRows, totalUsers, onSelectRange, se
           0%   { opacity: 0; transform: scale(0.75) translateY(2px); }
           65%  { opacity: 1; transform: scale(1.1) translateY(-1px); }
           100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes range-row-enter {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes range-row-update {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes range-row-exit {
+          from { opacity: 1; transform: translateY(0); }
+          to   { opacity: 0; transform: translateY(10px); }
         }
       `}</style>
 
@@ -215,19 +300,22 @@ function GroupAvailabilityList({ availabilityRows, totalUsers, onSelectRange, se
                 Tap a range to pre-fill your flight and hotel search.
               </p>
             )}
-            {ranges.map(({ start, end, users }) => (
+            {displayRanges.map(({ start, end, users, isNew, isExiting }, index) => (
               <RangeRow
                 key={`${start}-${end}`}
                 start={start}
                 end={end}
                 users={users}
-                isTop={users.length === maxCount}
-                isSelected={selectedStart === start && selectedEnd === end}
-                isClickable={isClickable}
+                isTop={!isExiting && users.length === maxCount}
+                isSelected={!isExiting && selectedStart === start && selectedEnd === end}
+                isClickable={isClickable && !isExiting}
                 totalUsers={totalUsers}
                 onSelect={onSelectRange}
                 locale={i18n.language}
                 topMatchLabel={t('groupAvailability.topMatch')}
+                enterDelay={isNew && !isExiting ? index * 55 : 0}
+                isNew={isNew}
+                isExiting={isExiting}
               />
             ))}
           </div>
