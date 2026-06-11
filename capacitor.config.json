@@ -1,0 +1,14 @@
+{
+  "appId": "com.when2go.app",
+  "appName": "when2go",
+  "webDir": "dist",
+  "backgroundColor": "#f8fafc",
+  "server": {
+    "url": "https://www.when2go.app",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#f8fafc"
+  }
+}

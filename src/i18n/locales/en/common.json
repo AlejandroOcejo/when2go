@@ -15,9 +15,9 @@
     "terms": "Terms"
   },
   "landing": {
-    "eyebrow": "Travel date picker",
-    "title": "Coordinate group travel dates in one shared link.",
-    "subtitle": "No signup, no passwords. Create a trip, share the URL, and let everyone mark available dates.",
+    "eyebrow": "New trip",
+    "title": "Find the week everyone can make it.",
+    "subtitle": "Create a shared link, your group marks their available dates, and you instantly see the best overlap.",
     "tripNameLabel": "What should we call this trip?",
     "tripNamePlaceholder": "Example: Lisbon getaway",
     "participantsLabel": "Who is joining?",

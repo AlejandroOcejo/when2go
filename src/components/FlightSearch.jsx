@@ -1,5 +1,7 @@
 ﻿import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { trackEvent } from '../lib/telemetry'
+import { inputCls, inputSmCls, labelCls } from '../lib/tokens'
 
 function toSkyscannerDate(dateKey) {
   const [year, month, day] = dateKey.split('-').map(Number)
@@ -25,16 +27,33 @@ function formatDateShort(dateStr) {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+const iconStyle = { display: 'inline', verticalAlign: '-0.125em' }
+
+function CalendarIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={iconStyle}>
+      <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" />
+    </svg>
+  )
+}
+function PeopleIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={iconStyle}>
+      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+    </svg>
+  )
+}
+
 function IataInput({ label, value, onChange, placeholder }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</label>
+      <label className={labelCls}>{label}</label>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4))}
         placeholder={placeholder}
-        className="h-12 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 text-base font-semibold text-slate-900 dark:text-slate-100 placeholder-slate-300 dark:placeholder-slate-600 outline-none transition-colors focus:border-orange-400 focus:ring-0"
+        className={`${inputCls} text-base font-semibold`}
         spellCheck={false}
         autoCapitalize="characters"
         autoCorrect="off"
@@ -43,7 +62,7 @@ function IataInput({ label, value, onChange, placeholder }) {
   )
 }
 
-function FlightSearch({ scheduleDates, participantCount }) {
+function FlightSearch({ scheduleDates, participantCount, tripId }) {
   const { t } = useTranslation()
   const earliest = scheduleDates[0] ?? ''
   const latest = scheduleDates[scheduleDates.length - 1] ?? ''
@@ -52,7 +71,7 @@ function FlightSearch({ scheduleDates, participantCount }) {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [outbound, setOutbound] = useState(earliest)
-  const [inbound, setInbound] = useState(latest !== earliest ? latest : '')
+  const [inbound, setInbound] = useState(latest ?? '')
   const [adults, setAdults] = useState(Math.max(1, participantCount ?? 1))
   const [showDetails, setShowDetails] = useState(false)
 
@@ -63,7 +82,7 @@ function FlightSearch({ scheduleDates, participantCount }) {
     if (!datesSeededRef.current && earliest) {
       datesSeededRef.current = true
       setOutbound(earliest)
-      if (latest && latest !== earliest) setInbound(latest)
+      if (latest) setInbound(latest)
     }
   }, [earliest, latest])
 
@@ -83,6 +102,13 @@ function FlightSearch({ scheduleDates, participantCount }) {
     e.preventDefault()
     if (!outbound) return
     const url = buildSkyscannerUrl({ from, to, outbound, inbound, adults, isRoundTrip })
+    trackEvent('flight_search_submitted', {
+      trip_id: tripId,
+      is_round_trip: isRoundTrip,
+      has_from: Boolean(from),
+      has_to: Boolean(to),
+      adults,
+    })
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
@@ -144,7 +170,7 @@ function FlightSearch({ scheduleDates, participantCount }) {
           >
             <span className="flex-1 text-left">
               {dateSummary ? (
-                <span>📅 {dateSummary} · 👥 {t('flights.adultsLabel', { count: adults })}</span>
+                <span><CalendarIcon /> {dateSummary} · <PeopleIcon /> {t('flights.adultsLabel', { count: adults })}</span>
               ) : (
                 <span className="text-slate-400 dark:text-slate-500">{t('flights.departure')} &amp; {t('flights.passengers').toLowerCase()}</span>
               )}
@@ -171,7 +197,7 @@ function FlightSearch({ scheduleDates, participantCount }) {
               <div className="space-y-3 pt-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mb-1">
                       {t('flights.departure')}
                     </label>
                     <input
@@ -179,12 +205,12 @@ function FlightSearch({ scheduleDates, participantCount }) {
                       value={outbound}
                       onChange={(e) => setOutbound(e.target.value)}
                       required
-                      className="h-9 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-colors focus:border-orange-400"
+                      className={inputSmCls}
                     />
                   </div>
                   {isRoundTrip && (
                     <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mb-1">
                         {t('flights.return')}
                       </label>
                       <input
@@ -192,7 +218,7 @@ function FlightSearch({ scheduleDates, participantCount }) {
                         value={inbound}
                         min={outbound}
                         onChange={(e) => setInbound(e.target.value)}
-                        className="h-9 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-colors focus:border-orange-400"
+                        className={inputSmCls}
                       />
                     </div>
                   )}

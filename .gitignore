@@ -29,3 +29,7 @@ supabase/schema.sql
 # Docs
 docs/architecture.md
 CLAUDE.md
+
+# Capacitor native projects (generated — run `npx cap add ios/android` to regenerate)
+ios/
+android/

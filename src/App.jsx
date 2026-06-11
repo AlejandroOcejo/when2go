@@ -28,7 +28,7 @@ function App() {
   const [viewer] = useState(() => getOrCreateAnonymousUser())
   const [pathname, setPathname] = useState(() => getPathname())
   const [isAccessGranted, setIsAccessGranted] = useState(() => hasStoredAccessToken())
-  const [isBootstrappingAccess, setIsBootstrappingAccess] = useState(true)
+  const [isBootstrappingAccess, setIsBootstrappingAccess] = useState(() => !hasStoredAccessToken())
 
   const tripId = getTripIdFromPath(pathname)
 
@@ -52,8 +52,6 @@ function App() {
     let cancelled = false
 
     async function bootstrapAccessState() {
-      setIsBootstrappingAccess(true)
-
       try {
         if (tripId) {
           const accessToken = getAccessTokenFromSearch(window.location.search)
@@ -89,7 +87,7 @@ function App() {
     return () => {
       cancelled = true
     }
-  }, [tripId, pathname])
+  }, [tripId])
 
   function navigate(path) {
     window.history.pushState({}, '', path)
@@ -121,7 +119,13 @@ function App() {
     return <LandingPage onNavigate={navigate} />
   }
 
-  return <DarkModeProvider>{renderContent()}</DarkModeProvider>
+  return (
+    <DarkModeProvider>
+      <div className="min-h-dvh bg-slate-50 dark:bg-slate-950 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+        {renderContent()}
+      </div>
+    </DarkModeProvider>
+  )
 }
 
 export default App

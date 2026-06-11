@@ -1,5 +1,22 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { inputCls, inputSmCls } from '../lib/tokens'
+
+const iconStyle = { display: 'inline', verticalAlign: '-0.125em' }
+function CalendarIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={iconStyle}>
+      <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" />
+    </svg>
+  )
+}
+function PeopleIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={iconStyle}>
+      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+    </svg>
+  )
+}
 import AppFooter from '../components/AppFooter'
 import AppHeader from '../components/AppHeader'
 import FlightSearch from '../components/FlightSearch'
@@ -17,8 +34,27 @@ import {
 import { getTripEmoji } from '../lib/tripEmoji'
 import { getTripPathById } from '../lib/tripLink'
 import { getSelectedTripUser } from '../lib/userIdentity'
+import { trackEvent } from '../lib/telemetry'
 
 const TABS = ['hotels', 'flights', 'agenda']
+
+const TAB_ICONS = {
+  hotels: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17 11V3H7v4H3v14h8v-4h2v4h8V11h-4zM7 19H5v-2h2v2zm0-4H5v-2h2v2zm0-4H5v-2h2v2zm4 4H9v-2h2v2zm0-4H9v-2h2v2zm0-4H9V7h2v2zm4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm4 8h-2v-2h2v2zm0-4h-2v-2h2v2z" />
+    </svg>
+  ),
+  flights: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+    </svg>
+  ),
+  agenda: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" />
+    </svg>
+  ),
+}
 
 function groupAvailabilityByDate(rows) {
   return rows.reduce((acc, row) => {
@@ -34,17 +70,36 @@ function formatDateRange(sortedDates) {
     const [y, m, d] = key.split('-').map(Number)
     return new Date(y, m - 1, d)
   }
-  const from = parseKey(sortedDates[0])
-  const to = parseKey(sortedDates[sortedDates.length - 1])
-  if (sortedDates.length === 1) {
-    return from.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const isConsecutive = (a, b) => {
+    const d = parseKey(a)
+    d.setDate(d.getDate() + 1)
+    return d.getTime() === parseKey(b).getTime()
   }
-  const sameYear = from.getFullYear() === to.getFullYear()
-  const sameMonth = sameYear && from.getMonth() === to.getMonth()
-  if (sameMonth) {
-    return `${from.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}–${to.getDate()}, ${to.getFullYear()}`
+  const runs = []
+  let s = sortedDates[0], e = sortedDates[0]
+  for (let i = 1; i < sortedDates.length; i++) {
+    if (isConsecutive(sortedDates[i - 1], sortedDates[i])) {
+      e = sortedDates[i]
+    } else {
+      runs.push([s, e])
+      s = sortedDates[i]
+      e = sortedDates[i]
+    }
   }
-  return `${from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${to.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  runs.push([s, e])
+  return runs.map(([start, end]) => {
+    const from = parseKey(start)
+    const to = parseKey(end)
+    if (start === end) {
+      return from.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+    }
+    const sameYear = from.getFullYear() === to.getFullYear()
+    const sameMonth = sameYear && from.getMonth() === to.getMonth()
+    if (sameMonth) {
+      return `${from.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}–${to.getDate()}, ${to.getFullYear()}`
+    }
+    return `${from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${to.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  }).join(' · ')
 }
 
 function formatDateShort(dateStr) {
@@ -62,12 +117,12 @@ function buildBookingUrl({ city, checkin, checkout, guests }) {
   return `https://www.booking.com/searchresults.html?${params}`
 }
 
-function HotelSearch({ scheduleDates, participantCount, t }) {
+function HotelSearch({ scheduleDates, participantCount, tripId, t }) {
   const earliest = scheduleDates[0] ?? ''
   const latest = scheduleDates[scheduleDates.length - 1] ?? ''
   const [city, setCity] = useState('')
   const [checkin, setCheckin] = useState(earliest)
-  const [checkout, setCheckout] = useState(latest !== earliest ? latest : '')
+  const [checkout, setCheckout] = useState(latest ?? '')
   const [guests, setGuests] = useState(Math.max(1, participantCount ?? 1))
   const [showDetails, setShowDetails] = useState(false)
 
@@ -78,7 +133,7 @@ function HotelSearch({ scheduleDates, participantCount, t }) {
     if (!datesSeededRef.current && earliest) {
       datesSeededRef.current = true
       setCheckin(earliest)
-      if (latest && latest !== earliest) setCheckout(latest)
+      if (latest) setCheckout(latest)
     }
   }, [earliest, latest])
 
@@ -92,6 +147,7 @@ function HotelSearch({ scheduleDates, participantCount, t }) {
   function handleSearch(e) {
     e.preventDefault()
     const url = buildBookingUrl({ city, checkin, checkout, guests })
+    trackEvent('hotel_search_submitted', { trip_id: tripId, guests, has_city: Boolean(city), has_dates: Boolean(checkin) })
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
@@ -118,7 +174,7 @@ function HotelSearch({ scheduleDates, participantCount, t }) {
           value={city}
           onChange={(e) => setCity(e.target.value)}
           placeholder={t('hotels.destinationPlaceholder')}
-          className="h-12 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 text-base font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-colors focus:border-orange-400"
+          className={`${inputCls} font-medium`}
         />
 
         <div>
@@ -129,7 +185,7 @@ function HotelSearch({ scheduleDates, participantCount, t }) {
           >
             <span className="flex-1 text-left">
               {dateSummary ? (
-                <span>📅 {dateSummary} · 👥 {t('hotels.guestsLabel', { count: guests })}</span>
+                <span><CalendarIcon /> {dateSummary} · <PeopleIcon /> {t('hotels.guestsLabel', { count: guests })}</span>
               ) : (
                 <span className="text-slate-400 dark:text-slate-500">{t('hotels.checkin')} &amp; {t('hotels.guests').toLowerCase()}</span>
               )}
@@ -156,18 +212,18 @@ function HotelSearch({ scheduleDates, participantCount, t }) {
               <div className="space-y-3 pt-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mb-1">
                       {t('hotels.checkin')}
                     </label>
                     <input
                       type="date"
                       value={checkin}
                       onChange={(e) => setCheckin(e.target.value)}
-                      className="h-9 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-colors focus:border-orange-400"
+                      className={inputSmCls}
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mb-1">
                       {t('hotels.checkout')}
                     </label>
                     <input
@@ -175,7 +231,7 @@ function HotelSearch({ scheduleDates, participantCount, t }) {
                       value={checkout}
                       min={checkin}
                       onChange={(e) => setCheckout(e.target.value)}
-                      className="h-9 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-colors focus:border-orange-400"
+                      className={inputSmCls}
                     />
                   </div>
                 </div>
@@ -232,6 +288,7 @@ function TripPlanPage({ tripId }) {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('hotels')
   const [slideDir, setSlideDir] = useState('right')
+  const [selectedRange, setSelectedRange] = useState(null)
 
   const selectedTripUser = useMemo(() => {
     const savedId = getSelectedTripUser(tripId)
@@ -246,6 +303,15 @@ function TripPlanPage({ tripId }) {
     () => Object.keys(groupedAvailability).sort(),
     [groupedAvailability],
   )
+
+  const searchScheduleDates = useMemo(
+    () => selectedRange ? [selectedRange.start, selectedRange.end] : scheduleDates,
+    [selectedRange, scheduleDates],
+  )
+
+  function handleSelectRange(start, end) {
+    setSelectedRange({ start, end })
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -264,6 +330,10 @@ function TripPlanPage({ tripId }) {
       if (availResult.status === 'fulfilled') setAvailabilityRows(availResult.value)
       else console.error('[TripPlanPage] getTripAvailability failed:', availResult.reason)
       setLoading(false)
+      trackEvent('plan_page_viewed', {
+        trip_id: tripId,
+        participant_count: usersResult.status === 'fulfilled' ? usersResult.value.length : undefined,
+      })
     }
 
     load()
@@ -294,6 +364,7 @@ function TripPlanPage({ tripId }) {
     if (tab === activeTab) return
     setSlideDir(TABS.indexOf(tab) > TABS.indexOf(activeTab) ? 'right' : 'left')
     setActiveTab(tab)
+    trackEvent('plan_tab_changed', { trip_id: tripId, tab })
   }
 
   async function handleAddActivity(date, hour, title) {
@@ -307,6 +378,7 @@ function TripPlanPage({ tripId }) {
         date, hour, title, userId: selectedTripUser?.id ?? null,
       })
       setActivities((prev) => prev.map((a) => (a.id === tempId ? { ...a, id: realId } : a)))
+      trackEvent('activity_added', { trip_id: tripId, hour })
     } catch (error) {
       console.error(error)
       setActivities((prev) => prev.filter((a) => a.id !== tempId))
@@ -315,6 +387,7 @@ function TripPlanPage({ tripId }) {
 
   async function handleRemoveActivity(activityId) {
     setActivities((prev) => prev.filter((a) => a.id !== activityId))
+    trackEvent('activity_removed', { trip_id: tripId })
     try {
       await removeTripActivity(tripId, activityId)
     } catch (error) {
@@ -325,7 +398,7 @@ function TripPlanPage({ tripId }) {
   if (loading) return <TripLoadingSkeleton />
 
   const tripDatesPath = getTripPathById(tripId)
-  const dateRange = formatDateRange(scheduleDates)
+  const dateRange = formatDateRange(searchScheduleDates.length > 0 ? searchScheduleDates : scheduleDates)
   const confirmedCount = tripUsers.filter((u) => u.confirmedAt).length
 
   return (
@@ -333,8 +406,10 @@ function TripPlanPage({ tripId }) {
       <style>{`
         @keyframes tab-enter-right { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes tab-enter-left  { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: translateX(0); } }
-        .tab-enter-right { animation: tab-enter-right 180ms ease-out both; }
-        .tab-enter-left  { animation: tab-enter-left  180ms ease-out both; }
+        @keyframes date-range-in   { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-enter-right  { animation: tab-enter-right 180ms ease-out both; }
+        .tab-enter-left   { animation: tab-enter-left  180ms ease-out both; }
+        .date-range-in    { animation: date-range-in   220ms ease-out both; }
       `}</style>
 
       <AppHeader tripName={trip?.name}>
@@ -359,7 +434,7 @@ function TripPlanPage({ tripId }) {
                 </span>
               </div>
               {dateRange && (
-                <p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+                <p key={`dr-${dateRange}`} className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight date-range-in">
                   {dateRange}
                 </p>
               )}
@@ -381,7 +456,13 @@ function TripPlanPage({ tripId }) {
       </section>
 
       {availabilityRows.length > 0 && (
-        <GroupAvailabilityList availabilityRows={availabilityRows} totalUsers={tripUsers.length} />
+        <GroupAvailabilityList
+          availabilityRows={availabilityRows}
+          totalUsers={tripUsers.length}
+          onSelectRange={handleSelectRange}
+          selectedStart={selectedRange?.start}
+          selectedEnd={selectedRange?.end}
+        />
       )}
 
       <div className="mx-auto mt-8 mb-6 max-w-3xl">
@@ -404,7 +485,7 @@ function TripPlanPage({ tripId }) {
                 activeTab === tab ? 'text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <span>{t(`plan.tab.${tab}.icon`)}</span>
+              <span className="shrink-0">{TAB_ICONS[tab]}</span>
               <span>{t(`plan.tab.${tab}.label`)}</span>
             </button>
           ))}
@@ -414,10 +495,10 @@ function TripPlanPage({ tripId }) {
       <div className="mx-auto max-w-3xl">
         <div key={activeTab} className={`tab-enter-${slideDir}`}>
           {activeTab === 'flights' && (
-            <FlightSearch scheduleDates={scheduleDates} participantCount={tripUsers.length} />
+            <FlightSearch key={`flights-${searchScheduleDates[0]}-${searchScheduleDates[searchScheduleDates.length - 1]}`} scheduleDates={searchScheduleDates} participantCount={tripUsers.length} tripId={tripId} />
           )}
           {activeTab === 'hotels' && (
-            <HotelSearch scheduleDates={scheduleDates} participantCount={tripUsers.length} t={t} />
+            <HotelSearch key={`hotels-${searchScheduleDates[0]}-${searchScheduleDates[searchScheduleDates.length - 1]}`} scheduleDates={searchScheduleDates} participantCount={tripUsers.length} tripId={tripId} t={t} />
           )}
           {activeTab === 'agenda' && (
             <TripSchedule

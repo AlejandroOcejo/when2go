@@ -46,7 +46,7 @@ function ShareCard({ tripId, tripName, shareLink }) {
 
         <button
           type="button"
-          onClick={() => setShareCardOpen((current) => !current)}
+          onClick={() => { const next = !shareCardOpen; setShareCardOpen(next); trackEvent('share_card_toggled', { trip_id: tripId, expanded: next }) }}
           aria-label={shareCardOpen ? t('trip.collapseCard') : t('trip.expandCard')}
           className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 transition duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300"
         >
@@ -81,7 +81,7 @@ function ShareCard({ tripId, tripName, shareLink }) {
               readOnly
               value={shareLink}
               onFocus={(event) => event.target.select()}
-              className="h-10 flex-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 text-sm text-slate-600 dark:text-slate-300 outline-none"
+              className="h-10 flex-1 rounded-lg bg-slate-100 dark:bg-slate-800/80 border-2 border-transparent px-3 text-sm text-slate-600 dark:text-slate-300 outline-none cursor-text"
               aria-label={t('trip.shareInputAria')}
             />
             <button
