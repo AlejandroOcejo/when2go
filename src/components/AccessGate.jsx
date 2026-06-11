@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { storeAccessToken, verifyAccessCode } from '../lib/supabaseBackend'
+import { inputCls } from '../lib/tokens'
 
 function AccessGate({ onAccessGranted }) {
   const { t } = useTranslation()
@@ -70,7 +71,7 @@ function AccessGate({ onAccessGranted }) {
                 setAccessError('')
               }
             }}
-            className="h-11 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none transition duration-150 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+            className={inputCls}
             placeholder="Passcode"
           />
 
@@ -79,7 +80,7 @@ function AccessGate({ onAccessGranted }) {
           <button
             type="submit"
             disabled={isVerifyingAccess}
-            className="h-11 cursor-pointer rounded-lg bg-orange-500 px-4 text-sm font-semibold text-white shadow-sm shadow-orange-200 dark:shadow-none transition duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-orange-300 disabled:shadow-none"
+            className="h-12 cursor-pointer rounded-xl bg-orange-500 px-4 text-sm font-semibold text-white shadow-sm shadow-orange-200 dark:shadow-none transition duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-orange-300 disabled:shadow-none"
           >
             {isVerifyingAccess ? 'Checking...' : 'Continue'}
           </button>
