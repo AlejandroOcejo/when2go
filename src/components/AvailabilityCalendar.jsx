@@ -2,15 +2,13 @@
 import { DayPicker } from 'react-day-picker'
 import { useTranslation } from 'react-i18next'
 import { trackEvent } from '../lib/telemetry'
-
-const BRAND_ORANGE_RGB = '249, 115, 22'
-const BRAND_ORANGE_DARK = '#ea580c'
+import { ORANGE_RGB, ORANGE_DARK_HEX } from '../lib/tokens'
 
 const DAY_BUTTON_CLASSES =
   'relative inline-flex h-10 w-10 min-h-10 min-w-10 max-h-10 max-w-10 aspect-square box-border cursor-pointer items-center justify-center rounded-md p-0 text-sm font-semibold text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-[background-color,transform,color] duration-150 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-300 dark:disabled:text-slate-600 disabled:opacity-60 disabled:active:scale-100 select-none [touch-action:manipulation]'
 
 const SELECTED_OUTLINE_CLASS =
-  `bg-transparent text-slate-900 dark:text-slate-100 shadow-[inset_0_0_0_2px_${BRAND_ORANGE_DARK}]`
+  `bg-transparent text-slate-900 dark:text-slate-100 shadow-[inset_0_0_0_2px_${ORANGE_DARK_HEX}]`
 
 const SHARED_CLASS_NAMES = {
   root: 'rdp-root w-full',
@@ -19,8 +17,8 @@ const SHARED_CLASS_NAMES = {
   month_caption: 'relative flex items-center justify-center py-2',
   caption_label: 'pointer-events-none relative z-0 text-base font-semibold text-slate-900 dark:text-slate-100',
   nav: 'absolute inset-x-0 z-10 flex items-center justify-between px-1',
-  button_previous: 'pointer-events-auto cursor-pointer h-8 w-8 rounded-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-150 disabled:pointer-events-none',
-  button_next: 'pointer-events-auto cursor-pointer h-8 w-8 rounded-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-150',
+  button_previous: 'pointer-events-auto cursor-pointer flex items-center justify-center h-8 w-8 rounded-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-150 disabled:pointer-events-none',
+  button_next: 'pointer-events-auto cursor-pointer flex items-center justify-center h-8 w-8 rounded-sm border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-150',
   month_grid: 'w-full border-collapse',
   weekdays: 'grid grid-cols-7 gap-1.5',
   weekday: 'py-1 text-center text-xs font-semibold text-slate-600 dark:text-slate-400',
@@ -104,7 +102,7 @@ function CalendarDayButton(props) {
   })()
 
   const heatmapStyle =
-    opacity > 0 ? { backgroundColor: `rgba(${BRAND_ORANGE_RGB}, ${opacity})` } : undefined
+    opacity > 0 ? { backgroundColor: `rgba(${ORANGE_RGB}, ${opacity})` } : undefined
 
   const isSelected = Boolean(modifiers?.selected || modifiers?.existingSelection)
   const isRangeStart = Boolean(modifiers?.range_start)

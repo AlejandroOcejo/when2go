@@ -422,10 +422,12 @@ function TripPage({ tripId }) {
     setAvailabilityRows((currentRows) =>
       withUserAvailabilityRows(currentRows, selectedTripUser, tripId, []),
     )
+    trackEvent('days_cleared', { trip_id: tripId })
   }
 
   function handleEditDates() {
     setConfirmingEditDates(true)
+    trackEvent('edit_dates_clicked', { trip_id: tripId })
   }
 
   function handleConfirmEditDates() {
@@ -434,6 +436,7 @@ function TripPage({ tripId }) {
       users.map((u) => (u.id === selectedTripUser.id ? { ...u, confirmedAt: null } : u)),
     )
     setConfirmingEditDates(false)
+    trackEvent('edit_dates_confirmed', { trip_id: tripId })
   }
 
   async function handleConfirmReady() {
@@ -461,6 +464,9 @@ function TripPage({ tripId }) {
       setCloseFlowPhase(null)
       setCloseFlowContentVisible(true)
     }, 500)
+    if (closeFlowPhase === 'confirm') {
+      trackEvent('close_trip_modal_cancelled', { trip_id: tripId })
+    }
   }
 
   async function handleCloseTrip() {
@@ -584,6 +590,7 @@ function TripPage({ tripId }) {
               </div>
               <a
                 href={getTripPlanPath(tripId)}
+                onClick={() => trackEvent('plan_trip_clicked', { trip_id: tripId, source: 'banner' })}
                 className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
               >
                 {t('trip.planTrip')}
@@ -676,7 +683,7 @@ function TripPage({ tripId }) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => { setCloseFlowPhase('confirm'); setCloseFlowContentVisible(true) }}
+                      onClick={() => { setCloseFlowPhase('confirm'); setCloseFlowContentVisible(true); trackEvent('close_trip_modal_opened', { trip_id: tripId }) }}
                       disabled={isClosingTrip}
                       className="cursor-pointer rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-emerald-200 dark:shadow-none transition duration-150 hover:bg-emerald-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -785,6 +792,7 @@ function TripPage({ tripId }) {
                   )}
                   <a
                     href={getTripPlanPath(tripId)}
+                    onClick={() => trackEvent('plan_trip_clicked', { trip_id: tripId, source: 'success_modal' })}
                     className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99]"
                   >
                     {t('trip.planTrip')}
