@@ -1,4 +1,4 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+﻿import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { DayPicker } from 'react-day-picker'
 import { useTranslation } from 'react-i18next'
 import { trackEvent } from '../lib/telemetry'
@@ -87,7 +87,7 @@ function monthKeyToDate(monthKey) {
 
 // Stable module-level component — never recreated, reads live data from context.
 function CalendarDayButton(props) {
-  const { mode, readOnly, availabilityCountByDate, safeTotalUsers, tapPulseKey, setTapPulseKey, t } =
+  const { mode, readOnly, availabilityCountByDate, safeTotalUsers, tapPulseKey, setTapPulseKey, newlyAppearedKeys, t } =
     useContext(CalendarCtx)
   const { day, modifiers, children, className, ...buttonProps } = props
   const dateKey = toDateKey(day.date)
@@ -119,8 +119,12 @@ function CalendarDayButton(props) {
     selectionClass = `${SELECTED_OUTLINE_CLASS} rounded-md`
   }
 
-  const tapAnimationClass =
-    tapPulseKey === dateKey ? 'animate-[day-tap-pop_240ms_cubic-bezier(0.2,0.9,0.3,1)]' : ''
+  const isNewlyAppeared = newlyAppearedKeys.has(dateKey)
+  const tapAnimationClass = tapPulseKey === dateKey
+    ? 'animate-[day-tap-pop_240ms_cubic-bezier(0.2,0.9,0.3,1)]'
+    : isNewlyAppeared
+      ? 'animate-[day-availability-appear_320ms_cubic-bezier(0.2,0.9,0.3,1)_both]'
+      : ''
   const readOnlyClass = readOnly ? 'cursor-default' : ''
   const mergedClassName = [className, selectionClass, tapAnimationClass, readOnlyClass].filter(Boolean).join(' ')
 
@@ -216,6 +220,8 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
   const [mode, setMode] = useState('multiple')
   const [rangeDraft, setRangeDraft] = useState(undefined)
   const [tapPulseKey, setTapPulseKey] = useState('')
+  const [newlyAppearedKeys, setNewlyAppearedKeys] = useState(() => new Set())
+  const prevAvailabilityRef = useRef(null)
 
   const fixedMonthDate = useMemo(() => monthKeyToDate(lockedMonth), [lockedMonth])
   const today = useMemo(() => {
@@ -242,6 +248,22 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
     }, {})
   }, [groupedAvailability])
 
+  useEffect(() => {
+    const prev = prevAvailabilityRef.current
+    prevAvailabilityRef.current = availabilityCountByDate
+    if (prev === null) return  // skip initial load — only animate live updates
+
+    const appeared = new Set()
+    for (const [key, count] of Object.entries(availabilityCountByDate)) {
+      if (count > 0 && (prev[key] ?? 0) === 0) appeared.add(key)
+    }
+    if (appeared.size === 0) return
+
+    setNewlyAppearedKeys(appeared)
+    const timer = setTimeout(() => setNewlyAppearedKeys(new Set()), 380)
+    return () => clearTimeout(timer)
+  }, [availabilityCountByDate])
+
   const sharedPickerProps = useMemo(() => ({
     animate: true,
     month: effectiveFixedMonthDate ?? undefined,
@@ -262,8 +284,9 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
     safeTotalUsers,
     tapPulseKey,
     setTapPulseKey,
+    newlyAppearedKeys,
     t,
-  }), [mode, readOnly, availabilityCountByDate, safeTotalUsers, tapPulseKey, t])
+  }), [mode, readOnly, availabilityCountByDate, safeTotalUsers, tapPulseKey, newlyAppearedKeys, t])
 
   useEffect(() => {
     if (!tapPulseKey) return
@@ -284,6 +307,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
         @keyframes rdp-slide-in-from-left { from { opacity: 0.15; transform: translateX(-100%); } to { opacity: 1; transform: translateX(0); } }
         @keyframes rdp-slide-out-to-right { from { opacity: 1; transform: translateX(0); } to { opacity: 0.15; transform: translateX(100%); } }
         @keyframes day-tap-pop { 0% { transform: scale(0.9); } 45% { transform: scale(1.08); } 100% { transform: scale(1); } }
+        @keyframes day-availability-appear { 0% { transform: scale(0.82); } 55% { transform: scale(1.11); } 100% { transform: scale(1); } }
       .rdp-caption_after_enter, .rdp-weeks_after_enter { animation: rdp-slide-in-from-right 180ms ease-out both; }
       .rdp-caption_after_exit, .rdp-weeks_after_exit { animation: rdp-slide-out-to-right 180ms ease-in both; }
       .rdp-caption_before_enter, .rdp-weeks_before_enter { animation: rdp-slide-in-from-left 180ms ease-out both; }
