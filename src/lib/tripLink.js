@@ -76,10 +76,16 @@ function formatBase62WithDashes(encoded, groupSize = 5) {
 }
 
 export function getTripPathById(tripId) {
-  const shortId = uuidToShortId(tripId)
+  // New format: 29-char hex → 20 base62 chars → 4 groups of 5
+  if (/^[0-9a-f]{29}$/.test(tripId)) {
+    const encoded = encodeBigIntToBase62(BigInt(`0x${tripId}`)).padStart(20, '0')
+    return `/t/${formatBase62WithDashes(encoded)}`
+  }
 
+  // Legacy UUID format → pad to 22 chars for consistent grouping
+  const shortId = uuidToShortId(tripId)
   if (shortId) {
-    return `/t/${formatBase62WithDashes(shortId)}`
+    return `/t/${formatBase62WithDashes(shortId.padStart(22, '0'))}`
   }
 
   return `/trip/${encodeURIComponent(tripId)}`
@@ -89,8 +95,17 @@ export function getTripIdFromPath(pathname) {
   const shortMatch = pathname.match(/^\/t\/([^/]+)(?:\/plan)?$/)
 
   if (shortMatch) {
-    const shortId = decodeURIComponent(shortMatch[1])
-    return shortIdToUuid(shortId) ?? shortId
+    const encoded = decodeURIComponent(shortMatch[1])
+    const stripped = encoded.replace(/-/g, '')
+
+    // New format: 20 base62 chars → 29-char hex trip ID
+    if (stripped.length === 20) {
+      const value = decodeBase62ToBigInt(stripped)
+      if (value !== null) return value.toString(16).padStart(29, '0')
+    }
+
+    // Legacy UUID format
+    return shortIdToUuid(encoded) ?? encoded
   }
 
   const longMatch = pathname.match(/^\/trip\/([^/]+)(?:\/plan)?$/)
@@ -112,20 +127,21 @@ export function isPlanPath(pathname) {
 
 function encodeAccessToken(rawHex) {
   const clean = String(rawHex ?? '').trim()
-  // Only encode 32-char hex tokens (new format, 128-bit)
-  if (!/^[0-9a-f]{32}$/.test(clean)) return clean
-  const encoded = encodeBigIntToBase62(BigInt(`0x${clean}`)).padStart(22, '0')
+  // Only encode 29-char hex tokens (116-bit, new format → exactly 20 base62 chars)
+  if (!/^[0-9a-f]{29}$/.test(clean)) return clean
+  const encoded = encodeBigIntToBase62(BigInt(`0x${clean}`)).padStart(20, '0')
   return formatBase62WithDashes(encoded)
 }
 
 function decodeAccessToken(token) {
-  // Old format: raw 64-char hex from the previous two-UUID scheme
+  // Legacy: raw hex tokens from old schemes
   if (/^[0-9a-f]{64}$/.test(token)) return token
-  // New format: base62 with dashes → 32-char hex
+  if (/^[0-9a-f]{32}$/.test(token)) return token
+  // Friendly format: base62 with dashes — length after stripping determines output size
   const stripped = token.replace(/-/g, '')
   const value = decodeBase62ToBigInt(stripped)
   if (value === null) return null
-  return value.toString(16).padStart(32, '0')
+  return value.toString(16).padStart(stripped.length <= 20 ? 29 : 32, '0')
 }
 
 export function buildTripSharePath(tripId, accessToken) {
