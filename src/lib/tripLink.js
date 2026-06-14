@@ -59,7 +59,7 @@ export function shortIdToUuid(shortId) {
     return null
   }
 
-  const parsed = decodeBase62ToBigInt(safeShortId)
+  const parsed = decodeBase62ToBigInt(safeShortId.replace(/-/g, ''))
 
   if (parsed === null) {
     return null
@@ -71,11 +71,15 @@ export function shortIdToUuid(shortId) {
   return isUuid(uuid) ? uuid : null
 }
 
+function formatBase62WithDashes(encoded, groupSize = 5) {
+  return encoded.match(new RegExp(`.{1,${groupSize}}`, 'g')).join('-')
+}
+
 export function getTripPathById(tripId) {
   const shortId = uuidToShortId(tripId)
 
   if (shortId) {
-    return `/t/${shortId}`
+    return `/t/${formatBase62WithDashes(shortId)}`
   }
 
   return `/trip/${encodeURIComponent(tripId)}`
@@ -106,6 +110,24 @@ export function isPlanPath(pathname) {
   return pathname.endsWith('/plan')
 }
 
+function encodeAccessToken(rawHex) {
+  const clean = String(rawHex ?? '').trim()
+  // Only encode 32-char hex tokens (new format, 128-bit)
+  if (!/^[0-9a-f]{32}$/.test(clean)) return clean
+  const encoded = encodeBigIntToBase62(BigInt(`0x${clean}`)).padStart(22, '0')
+  return formatBase62WithDashes(encoded)
+}
+
+function decodeAccessToken(token) {
+  // Old format: raw 64-char hex from the previous two-UUID scheme
+  if (/^[0-9a-f]{64}$/.test(token)) return token
+  // New format: base62 with dashes → 32-char hex
+  const stripped = token.replace(/-/g, '')
+  const value = decodeBase62ToBigInt(stripped)
+  if (value === null) return null
+  return value.toString(16).padStart(32, '0')
+}
+
 export function buildTripSharePath(tripId, accessToken) {
   const basePath = getTripPathById(tripId)
   const safeToken = String(accessToken ?? '').trim()
@@ -115,14 +137,15 @@ export function buildTripSharePath(tripId, accessToken) {
   }
 
   const params = new URLSearchParams()
-  params.set('a', safeToken)
+  params.set('a', encodeAccessToken(safeToken))
   return `${basePath}?${params.toString()}`
 }
 
 export function getAccessTokenFromSearch(search) {
   const params = new URLSearchParams(search)
   const token = String(params.get('a') ?? '').trim()
-  return token || null
+  if (!token) return null
+  return decodeAccessToken(token)
 }
 
 export function clearAccessTokenFromCurrentUrl() {
