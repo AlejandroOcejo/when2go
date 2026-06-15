@@ -1,10 +1,10 @@
 {
-  "appId": "com.when2go.app",
-  "appName": "when2go",
+  "appId": "app.voyora.app",
+  "appName": "voyora",
   "webDir": "dist",
   "backgroundColor": "#f8fafc",
   "server": {
-    "url": "https://www.when2go.app",
+    "url": "https://voyora.app",
     "cleartext": false
   },
   "ios": {

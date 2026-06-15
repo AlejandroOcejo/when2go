@@ -53,7 +53,7 @@ jobs:
             -project ios/App/App.xcodeproj \
             -scheme App \
             -configuration Release \
-            -archivePath $RUNNER_TEMP/when2go.xcarchive \
+            -archivePath $RUNNER_TEMP/voyora.xcarchive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -62,14 +62,14 @@ jobs:
       - name: Package as IPA
         run: |
           mkdir -p $RUNNER_TEMP/Payload
-          cp -r "$RUNNER_TEMP/when2go.xcarchive/Products/Applications/App.app" \
+          cp -r "$RUNNER_TEMP/voyora.xcarchive/Products/Applications/App.app" \
             $RUNNER_TEMP/Payload/
           cd $RUNNER_TEMP
-          zip -r when2go.ipa Payload/
+          zip -r voyora.ipa Payload/
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: when2go-ios
-          path: ${{ runner.temp }}/when2go.ipa
+          name: voyora-ios
+          path: ${{ runner.temp }}/voyora.ipa
           retention-days: 7

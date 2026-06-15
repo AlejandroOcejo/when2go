@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from '../lib/navigation'
 import AppFooter from '../components/AppFooter'
 import AppHeader from '../components/AppHeader'
 import { trackEvent } from '../lib/telemetry'
@@ -62,14 +63,15 @@ function heatmapOpacity(count, total) {
 }
 
 function GroupPreviewCard() {
+  const { t } = useTranslation()
   return (
     <div className="w-72 shrink-0 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-2xl shadow-slate-300/40 dark:shadow-slate-950/60">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">Lisbon weekend</p>
+        <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{t('landing.demoTripName')}</p>
         <div className="flex shrink-0 items-center gap-1.5">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-500" />
-          <span className="text-[9px] font-bold uppercase tracking-wide text-orange-500">Live</span>
+          <span className="text-[9px] font-bold uppercase tracking-wide text-orange-500">{t('landing.demoLive')}</span>
         </div>
       </div>
 
@@ -110,8 +112,8 @@ function GroupPreviewCard() {
           </svg>
         </div>
         <div>
-          <p className="text-[10px] font-bold text-orange-700 dark:text-orange-400">Jun 17–19: everyone free</p>
-          <p className="text-[9px] text-slate-500 dark:text-slate-500">3 of 3 available</p>
+          <p className="text-[10px] font-bold text-orange-700 dark:text-orange-400">{t('landing.demoBestMatch')}</p>
+          <p className="text-[9px] text-slate-500 dark:text-slate-500">{t('landing.demoAvailable')}</p>
         </div>
       </div>
     </div>
@@ -119,8 +121,9 @@ function GroupPreviewCard() {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-function LandingPage({ onNavigate }) {
+function LandingPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [tripName, setTripName] = useState('')
   const [participantName, setParticipantName] = useState('')
   const [participants, setParticipants] = useState([])
@@ -128,6 +131,7 @@ function LandingPage({ onNavigate }) {
   const [limitToMonth, setLimitToMonth] = useState(false)
   const [limitedMonth, setLimitedMonth] = useState('')
   const [isCreatingTrip, setIsCreatingTrip] = useState(false)
+  const [createTripError, setCreateTripError] = useState(null)
   const [recentTrips] = useState(() => getRecentTrips())
 
   const currentDate = useMemo(() => new Date(), [])
@@ -179,6 +183,7 @@ function LandingPage({ onNavigate }) {
     const cleanParticipants = participants.map((name) => name.trim()).filter((name) => name.length > 0)
     const monthLock = limitToMonth && /^\d{4}-\d{2}$/.test(limitedMonth) ? limitedMonth : ''
     if (!trimmed || cleanParticipants.length === 0 || isCreatingTrip) return
+    setCreateTripError(null)
     try {
       setIsCreatingTrip(true)
       const trip = await createTrip(trimmed, cleanParticipants)
@@ -189,11 +194,11 @@ function LandingPage({ onNavigate }) {
         trip_name_length: trimmed.length,
       })
       if (monthLock) saveTripMonthLock(trip.id, monthLock)
-      onNavigate(getTripPathById(trip.id))
+      navigate(getTripPathById(trip.id))
     } catch (error) {
       console.error(error)
       if (String(error?.message ?? '').includes('invalid_session')) await clearAccessToken()
-      window.alert('Unable to create trip right now. Please check Supabase configuration and try again.')
+      setCreateTripError(t('landing.createTripError'))
     } finally {
       setIsCreatingTrip(false)
     }
@@ -216,11 +221,7 @@ function LandingPage({ onNavigate }) {
         }
       `}</style>
 
-      <AppHeader>
-        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-          Invite only
-        </span>
-      </AppHeader>
+      <AppHeader />
 
       {/* ── Hero ── */}
       <section
@@ -231,7 +232,7 @@ function LandingPage({ onNavigate }) {
           <div className="flex-1 min-w-0">
             <p className="flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
               <span className="h-px w-5 bg-orange-400 dark:bg-orange-600" aria-hidden="true" />
-              No signup · No passwords
+              {t('landing.noSignupBadge')}
             </p>
             <h1 className="mt-4 text-[2.5rem] font-extrabold leading-[1.08] tracking-tight text-slate-950 dark:text-white sm:text-5xl">
               {t('landing.title')}
@@ -244,26 +245,28 @@ function LandingPage({ onNavigate }) {
             <div className="mt-8 flex gap-7">
               {[
                 {
+                  key: 'share',
                   icon: (
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
                       <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
                     </svg>
                   ),
-                  title: 'Share a link',
-                  sub: 'No account needed',
+                  title: t('landing.featureShareTitle'),
+                  sub: t('landing.featureShareSub'),
                 },
                 {
+                  key: 'week',
                   icon: (
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                     </svg>
                   ),
-                  title: 'Find the best week',
-                  sub: 'See the overlap instantly',
+                  title: t('landing.featureBestWeekTitle'),
+                  sub: t('landing.featureBestWeekSub'),
                 },
-              ].map(({ icon, title, sub }) => (
-                <div key={title} className="flex items-center gap-3">
+              ].map(({ key, icon, title, sub }) => (
+                <div key={key} className="flex items-center gap-3">
                   <span className="shrink-0 text-orange-500 dark:text-orange-400">{icon}</span>
                   <div>
                     <p className="text-xs font-bold leading-none text-slate-900 dark:text-slate-100 mb-1">{title}</p>
@@ -407,7 +410,7 @@ function LandingPage({ onNavigate }) {
                         required={limitToMonth}
                         className="h-10 w-full cursor-pointer appearance-none rounded-lg bg-slate-100 dark:bg-slate-800 border-2 border-transparent pl-3 pr-10 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-all duration-150 focus:bg-white dark:focus:bg-slate-800 focus:border-orange-400"
                       >
-                        <option value="" disabled>Select month</option>
+                        <option value="" disabled>{t('landing.selectMonth')}</option>
                         {monthOptions.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
@@ -426,7 +429,7 @@ function LandingPage({ onNavigate }) {
                         required={limitToMonth}
                         className="h-10 w-full cursor-pointer appearance-none rounded-lg bg-slate-100 dark:bg-slate-800 border-2 border-transparent pl-3 pr-10 text-sm font-medium text-slate-900 dark:text-slate-100 outline-none transition-all duration-150 focus:bg-white dark:focus:bg-slate-800 focus:border-orange-400"
                       >
-                        <option value="" disabled>Select year</option>
+                        <option value="" disabled>{t('landing.selectYear')}</option>
                         {yearOptions.map((year) => (
                           <option key={year} value={year}>{year}</option>
                         ))}
@@ -449,13 +452,18 @@ function LandingPage({ onNavigate }) {
               disabled={participants.length === 0 || isCreatingTrip || (limitToMonth && !limitedMonth)}
               className="flex h-[52px] w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange-500 text-[15px] font-bold text-white shadow-md shadow-orange-300/40 dark:shadow-none transition duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-orange-300 disabled:shadow-none"
             >
-              {isCreatingTrip ? 'Creating trip…' : t('landing.createTrip')}
+              {isCreatingTrip ? t('landing.creatingTrip') : t('landing.createTrip')}
               {!isCreatingTrip && (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
               )}
             </button>
+            {createTripError && (
+              <p role="alert" className="mt-2 text-sm font-medium text-rose-600 dark:text-rose-400">
+                {createTripError}
+              </p>
+            )}
           </form>
         </div>
       </section>
@@ -476,7 +484,7 @@ function LandingPage({ onNavigate }) {
                 type="button"
                 onClick={() => {
                   trackEvent('recent_trip_opened', { trip_id: recentTrip.id })
-                  onNavigate(recentTrip.path)
+                  navigate(recentTrip.path)
                 }}
                 className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-left transition duration-150 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
               >

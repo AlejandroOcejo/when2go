@@ -243,31 +243,3 @@ export async function closeTrip(tripId) {
     tripId,
   })
 }
-
-export async function getTripActivities(tripId) {
-  const result = await apiPost('/api/trip', { action: 'getActivities', tripId })
-  return (result?.activities ?? []).map((a) => ({
-    id: a.id,
-    date: String(a.date),
-    hour: Number(a.hour),
-    title: a.title,
-    createdBy: a.created_by ?? null,
-    createdAt: a.created_at,
-  }))
-}
-
-export async function addTripActivity(tripId, { date, hour, title, userId }) {
-  const result = await apiPost('/api/trip', {
-    action: 'addActivity',
-    tripId,
-    date,
-    hour,
-    title,
-    userId: userId ?? null,
-  })
-  return String(result?.id ?? '')
-}
-
-export async function removeTripActivity(tripId, activityId) {
-  await apiPost('/api/trip', { action: 'removeActivity', tripId, activityId })
-}

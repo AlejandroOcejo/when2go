@@ -48,6 +48,7 @@ function ShareCard({ tripId, tripName, shareLink }) {
           type="button"
           onClick={() => { const next = !shareCardOpen; setShareCardOpen(next); trackEvent('share_card_toggled', { trip_id: tripId, expanded: next }) }}
           aria-label={shareCardOpen ? t('trip.collapseCard') : t('trip.expandCard')}
+          aria-expanded={shareCardOpen}
           className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 transition duration-150 hover:bg-slate-100 dark:hover:bg-slate-800 hover:border-slate-300"
         >
           <svg
@@ -96,7 +97,7 @@ function ShareCard({ tripId, tripName, shareLink }) {
               {copied ? t('trip.copied') : t('trip.copyLink')}
             </button>
           </div>
-          <p className={`mt-2 text-xs transition duration-150 ${copied ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
+          <p aria-live="polite" className={`mt-2 text-xs transition duration-150 ${copied ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
             {copied ? t('trip.copiedHint') : t('trip.shareHint')}
           </p>
         </div>

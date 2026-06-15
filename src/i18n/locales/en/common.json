@@ -1,6 +1,6 @@
 {
   "brand": {
-    "name": "Trip Availability"
+    "name": "voyora"
   },
   "badge": {
     "mvp": "MVP",
@@ -14,10 +14,26 @@
     "privacy": "Privacy",
     "terms": "Terms"
   },
+  "ui": {
+    "skipToContent": "Skip to main content",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode",
+    "backToHome": "Back to home",
+    "tryAgain": "Try again",
+    "pageNotFoundTitle": "Page not found",
+    "pageNotFoundBody": "The page you're looking for doesn't exist or may have been moved.",
+    "errorTitle": "Something went wrong",
+    "errorBody": "An unexpected error occurred. Try refreshing the page — if the problem persists, contact us."
+  },
   "landing": {
     "eyebrow": "New trip",
     "title": "Find the week everyone can make it.",
     "subtitle": "Create a shared link, your group marks their available dates, and you instantly see the best overlap.",
+    "noSignupBadge": "No signup · No passwords",
+    "featureShareTitle": "Share a link",
+    "featureShareSub": "No account needed",
+    "featureBestWeekTitle": "Find the best week",
+    "featureBestWeekSub": "See the overlap instantly",
     "tripNameLabel": "What should we call this trip?",
     "tripNamePlaceholder": "Example: Lisbon getaway",
     "participantsLabel": "Who is joining?",
@@ -28,9 +44,17 @@
     "limitToMonthToggle": "Limit calendar to one month",
     "limitToMonthLabel": "Month and year",
     "limitToMonthHint": "When enabled, everyone opening the link will see only this month.",
+    "selectMonth": "Select month",
+    "selectYear": "Select year",
     "createTrip": "Create trip",
+    "creatingTrip": "Creating trip…",
+    "createTripError": "Unable to create trip right now. Please try again.",
     "recentTripsTitle": "Recent trips",
-    "openRecent": "Open"
+    "openRecent": "Open",
+    "demoTripName": "Lisbon weekend",
+    "demoLive": "Live",
+    "demoBestMatch": "Jun 17–19: everyone free",
+    "demoAvailable": "3 of 3 available"
   },
   "access": {
     "checking": "Checking access..."
@@ -112,28 +136,22 @@
     "backToDates": "Back to dates",
     "confirmedCount": "{{confirmed}} of {{total}} confirmed",
     "tab": {
-      "flights": { "icon": "✈", "label": "Flights" },
-      "hotels": { "icon": "🏨", "label": "Hotels" },
-      "agenda": { "icon": "📅", "label": "Agenda" }
+      "hotels": { "label": "Hotels" },
+      "activities": { "label": "Activities" }
     }
   },
-  "flights": {
-    "title": "Search flights",
-    "subtitle": "Find the best flights for your group",
-    "roundTrip": "Round trip",
-    "oneWay": "One way",
-    "from": "From",
-    "to": "To",
-    "swap": "Swap origin and destination",
-    "departure": "Departure",
-    "return": "Return",
-    "passengers": "Passengers",
-    "adultsLabel_one": "{{count}} adult",
-    "adultsLabel_other": "{{count}} adults",
-    "addPassenger": "Add passenger",
-    "removePassenger": "Remove passenger",
-    "searchButton": "Search on Skyscanner",
-    "disclaimer": "Opens Skyscanner in a new tab with your trip dates pre-filled."
+  "activities": {
+    "title": "Find things to do",
+    "subtitle": "Discover experiences for your group",
+    "destination": "Where are you going?",
+    "destinationPlaceholder": "City or area, e.g. Barcelona",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "people": "People",
+    "peopleLabel_one": "{{count}} person",
+    "peopleLabel_other": "{{count}} people",
+    "searchButton": "Search on GetYourGuide",
+    "disclaimer": "Opens GetYourGuide in a new tab with your trip dates pre-filled."
   },
   "hotels": {
     "title": "Search accommodation",
