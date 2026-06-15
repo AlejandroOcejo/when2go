@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>when2go</title>
+    <title>voyora</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -12,6 +12,48 @@
     <style>
       html, body { background-color: #f8fafc; }
       html.dark, html.dark body { background-color: #020617; }
+
+      /* Skip to content link — invisible until keyboard focused */
+      .skip-link {
+        position: absolute;
+        left: -9999px;
+        top: auto;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+      .skip-link:focus-visible {
+        position: fixed;
+        left: 1rem;
+        top: 1rem;
+        z-index: 9999;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        padding: 0.5rem 1.25rem;
+        border-radius: 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        background: #fff;
+        color: #f97316;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+        outline: 2px solid #f97316;
+        outline-offset: 2px;
+      }
+      html.dark .skip-link:focus-visible {
+        background: #0f172a;
+        color: #fb923c;
+        outline-color: #fb923c;
+      }
+
+      /* Consistent orange focus rings for all interactive elements */
+      :focus-visible {
+        outline: 2px solid #f97316;
+        outline-offset: 2px;
+      }
+      html.dark :focus-visible {
+        outline-color: #fb923c;
+      }
     </style>
     <style type="text/tailwindcss">
       @custom-variant dark (&:where(.dark, .dark *));

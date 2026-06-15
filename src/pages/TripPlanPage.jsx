@@ -1,6 +1,7 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { inputCls, inputSmCls } from '../lib/tokens'
+import { useNavigate } from '../lib/navigation'
 
 const iconStyle = { display: 'inline', verticalAlign: '-0.125em' }
 function CalendarIcon() {
@@ -17,41 +18,31 @@ function PeopleIcon() {
     </svg>
   )
 }
+
 import AppFooter from '../components/AppFooter'
 import AppHeader from '../components/AppHeader'
-import FlightSearch from '../components/FlightSearch'
 import GroupAvailabilityList from '../components/GroupAvailabilityList'
 import TripLoadingSkeleton from '../components/TripLoadingSkeleton'
-import TripSchedule from '../components/TripSchedule'
 import {
-  addTripActivity,
   getTrip,
-  getTripActivities,
   getTripAvailability,
   getTripUsers,
-  removeTripActivity,
 } from '../lib/supabaseBackend'
 import { getTripEmoji } from '../lib/tripEmoji'
 import { getTripPathById } from '../lib/tripLink'
-import { getSelectedTripUser } from '../lib/userIdentity'
 import { trackEvent } from '../lib/telemetry'
 
-const TABS = ['hotels', 'flights', 'agenda']
+const TABS = ['hotels', 'activities']
 
 const TAB_ICONS = {
   hotels: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M17 11V3H7v4H3v14h8v-4h2v4h8V11h-4zM7 19H5v-2h2v2zm0-4H5v-2h2v2zm0-4H5v-2h2v2zm4 4H9v-2h2v2zm0-4H9v-2h2v2zm0-4H9V7h2v2zm4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm4 8h-2v-2h2v2zm0-4h-2v-2h2v2z" />
     </svg>
   ),
-  flights: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-    </svg>
-  ),
-  agenda: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" />
+  activities: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3.49L17.5 6.5 9.99 9.99 6.5 17.5zm5.5-6.6c.61 0 1.1.49 1.1 1.1s-.49 1.1-1.1 1.1-1.1-.49-1.1-1.1.49-1.1 1.1-1.1z" />
     </svg>
   ),
 }
@@ -90,9 +81,7 @@ function formatDateRange(sortedDates) {
   return runs.map(([start, end]) => {
     const from = parseKey(start)
     const to = parseKey(end)
-    if (start === end) {
-      return from.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
-    }
+    if (start === end) return from.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
     const sameYear = from.getFullYear() === to.getFullYear()
     const sameMonth = sameYear && from.getMonth() === to.getMonth()
     if (sameMonth) {
@@ -117,7 +106,17 @@ function buildBookingUrl({ city, checkin, checkout, guests }) {
   return `https://www.booking.com/searchresults.html?${params}`
 }
 
-function HotelSearch({ scheduleDates, participantCount, tripId, t }) {
+function buildGetYourGuideUrl({ destination, dateFrom, dateTo, people }) {
+  const params = new URLSearchParams()
+  if (destination) params.set('q', destination)
+  if (dateFrom) params.set('date_from', dateFrom)
+  if (dateTo) params.set('date_to', dateTo)
+  if (people > 0) params.set('adults', String(people))
+  return `https://www.getyourguide.com/s/?${params}`
+}
+
+function HotelSearch({ scheduleDates, participantCount, tripId }) {
+  const { t } = useTranslation()
   const earliest = scheduleDates[0] ?? ''
   const latest = scheduleDates[scheduleDates.length - 1] ?? ''
   const [city, setCity] = useState('')
@@ -190,86 +189,42 @@ function HotelSearch({ scheduleDates, participantCount, tripId, t }) {
                 <span className="text-slate-400 dark:text-slate-500">{t('hotels.checkin')} &amp; {t('hotels.guests').toLowerCase()}</span>
               )}
             </span>
-            <svg
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${showDetails ? 'rotate-180' : ''}`}
-            >
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${showDetails ? 'rotate-180' : ''}`} aria-hidden="true">
               <path d="M5 8l5 5 5-5" />
             </svg>
           </button>
 
-          <div
-            className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${
-              showDetails ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-            }`}
-          >
+          <div className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${showDetails ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
             <div className="min-h-0">
               <div className="space-y-3 pt-3">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mb-1">
-                      {t('hotels.checkin')}
-                    </label>
-                    <input
-                      type="date"
-                      value={checkin}
-                      onChange={(e) => setCheckin(e.target.value)}
-                      className={inputSmCls}
-                    />
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mb-1">{t('hotels.checkin')}</label>
+                    <input type="date" value={checkin} onChange={(e) => setCheckin(e.target.value)} className={inputSmCls} />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mb-1">
-                      {t('hotels.checkout')}
-                    </label>
-                    <input
-                      type="date"
-                      value={checkout}
-                      min={checkin}
-                      onChange={(e) => setCheckout(e.target.value)}
-                      className={inputSmCls}
-                    />
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mb-1">{t('hotels.checkout')}</label>
+                    <input type="date" value={checkout} min={checkin} onChange={(e) => setCheckout(e.target.value)} className={inputSmCls} />
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-slate-600 dark:text-slate-400">{t('hotels.guests')}</span>
-                  <button
-                    type="button"
-                    onClick={() => adjustGuests(-1)}
-                    disabled={guests <= 1}
-                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-base font-semibold text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    −
-                  </button>
+                  <button type="button" onClick={() => adjustGuests(-1)} disabled={guests <= 1} className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-base font-semibold text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40">−</button>
                   <span className="w-5 text-center text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">{guests}</span>
-                  <button
-                    type="button"
-                    onClick={() => adjustGuests(1)}
-                    disabled={guests >= 30}
-                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-base font-semibold text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    +
-                  </button>
+                  <button type="button" onClick={() => adjustGuests(1)} disabled={guests >= 30} className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-base font-semibold text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40">+</button>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <button
-          type="submit"
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-orange-600 active:scale-[0.99]"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <button type="submit" className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-orange-600 active:scale-[0.99]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
             <polyline points="9 22 9 12 15 12 15 22" />
           </svg>
           {t('hotels.searchButton')}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
           </svg>
         </button>
@@ -279,21 +234,134 @@ function HotelSearch({ scheduleDates, participantCount, tripId, t }) {
   )
 }
 
+function ActivitySearch({ scheduleDates, participantCount, tripId }) {
+  const { t } = useTranslation()
+  const earliest = scheduleDates[0] ?? ''
+  const latest = scheduleDates[scheduleDates.length - 1] ?? ''
+  const [destination, setDestination] = useState('')
+  const [dateFrom, setDateFrom] = useState(earliest)
+  const [dateTo, setDateTo] = useState(latest ?? '')
+  const [people, setPeople] = useState(Math.max(1, participantCount ?? 1))
+  const [showDetails, setShowDetails] = useState(false)
+
+  const datesSeededRef = useRef(Boolean(earliest))
+  const peopleSeededRef = useRef(participantCount > 0)
+
+  useEffect(() => {
+    if (!datesSeededRef.current && earliest) {
+      datesSeededRef.current = true
+      setDateFrom(earliest)
+      if (latest) setDateTo(latest)
+    }
+  }, [earliest, latest])
+
+  useEffect(() => {
+    if (!peopleSeededRef.current && participantCount > 0) {
+      peopleSeededRef.current = true
+      setPeople(participantCount)
+    }
+  }, [participantCount])
+
+  function handleSearch(e) {
+    e.preventDefault()
+    const url = buildGetYourGuideUrl({ destination, dateFrom, dateTo, people })
+    trackEvent('activity_search_submitted', { trip_id: tripId, people, has_destination: Boolean(destination), has_dates: Boolean(dateFrom) })
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  function adjustPeople(delta) {
+    setPeople((n) => Math.max(1, Math.min(30, n + delta)))
+  }
+
+  const dateSummary = dateFrom
+    ? `${formatDateShort(dateFrom)}${dateTo ? ` → ${formatDateShort(dateTo)}` : ''}`
+    : null
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+      <form onSubmit={handleSearch} className="space-y-4 p-5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t('activities.title')}</span>
+          <span className="rounded-full border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+            GetYourGuide
+          </span>
+        </div>
+
+        <input
+          type="text"
+          value={destination}
+          onChange={(e) => setDestination(e.target.value)}
+          placeholder={t('activities.destinationPlaceholder')}
+          className={`${inputCls} font-medium`}
+        />
+
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            className="flex w-full cursor-pointer items-center gap-2 rounded-lg py-1 text-sm text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+          >
+            <span className="flex-1 text-left">
+              {dateSummary ? (
+                <span><CalendarIcon /> {dateSummary} · <PeopleIcon /> {t('activities.peopleLabel', { count: people })}</span>
+              ) : (
+                <span className="text-slate-400 dark:text-slate-500">{t('activities.dateFrom')} &amp; {t('activities.people').toLowerCase()}</span>
+              )}
+            </span>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${showDetails ? 'rotate-180' : ''}`} aria-hidden="true">
+              <path d="M5 8l5 5 5-5" />
+            </svg>
+          </button>
+
+          <div className={`grid overflow-hidden transition-[grid-template-rows,opacity] duration-200 ease-out ${showDetails ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+            <div className="min-h-0">
+              <div className="space-y-3 pt-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mb-1">{t('activities.dateFrom')}</label>
+                    <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={inputSmCls} />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400 mb-1">{t('activities.dateTo')}</label>
+                    <input type="date" value={dateTo} min={dateFrom} onChange={(e) => setDateTo(e.target.value)} className={inputSmCls} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-600 dark:text-slate-400">{t('activities.people')}</span>
+                  <button type="button" onClick={() => adjustPeople(-1)} disabled={people <= 1} className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-base font-semibold text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40">−</button>
+                  <span className="w-5 text-center text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">{people}</span>
+                  <button type="button" onClick={() => adjustPeople(1)} disabled={people >= 30} className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-base font-semibold text-slate-700 dark:text-slate-300 transition-colors hover:bg-slate-50 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-orange-600 active:scale-[0.99]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3.49L17.5 6.5 9.99 9.99 6.5 17.5zm5.5-6.6c.61 0 1.1.49 1.1 1.1s-.49 1.1-1.1 1.1-1.1-.49-1.1-1.1.49-1.1 1.1-1.1z" />
+          </svg>
+          {t('activities.searchButton')}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+          </svg>
+        </button>
+        <p className="text-center text-xs text-slate-400 dark:text-slate-500">{t('activities.disclaimer')}</p>
+      </form>
+    </div>
+  )
+}
+
 function TripPlanPage({ tripId }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [trip, setTrip] = useState(null)
   const [tripUsers, setTripUsers] = useState([])
   const [availabilityRows, setAvailabilityRows] = useState([])
-  const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('hotels')
   const [slideDir, setSlideDir] = useState('right')
   const [selectedRange, setSelectedRange] = useState(null)
-
-  const selectedTripUser = useMemo(() => {
-    const savedId = getSelectedTripUser(tripId)
-    return tripUsers.find((u) => u.id === savedId) ?? null
-  }, [tripUsers, tripId])
 
   const groupedAvailability = useMemo(
     () => groupAvailabilityByDate(availabilityRows),
@@ -303,7 +371,6 @@ function TripPlanPage({ tripId }) {
     () => Object.keys(groupedAvailability).sort(),
     [groupedAvailability],
   )
-
   const searchScheduleDates = useMemo(
     () => selectedRange ? [selectedRange.start, selectedRange.end] : scheduleDates,
     [selectedRange, scheduleDates],
@@ -340,59 +407,11 @@ function TripPlanPage({ tripId }) {
     return () => { cancelled = true }
   }, [tripId])
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadActivities() {
-      try {
-        const data = await getTripActivities(tripId)
-        if (!cancelled) setActivities(data)
-      } catch (error) {
-        console.error(error)
-      }
-    }
-
-    loadActivities()
-    const intervalId = window.setInterval(loadActivities, 15000)
-    return () => {
-      cancelled = true
-      window.clearInterval(intervalId)
-    }
-  }, [tripId])
-
   function handleTabChange(tab) {
     if (tab === activeTab) return
     setSlideDir(TABS.indexOf(tab) > TABS.indexOf(activeTab) ? 'right' : 'left')
     setActiveTab(tab)
     trackEvent('plan_tab_changed', { trip_id: tripId, tab })
-  }
-
-  async function handleAddActivity(date, hour, title) {
-    const tempId = `temp-${Date.now()}`
-    setActivities((prev) => [
-      ...prev,
-      { id: tempId, date, hour, title, createdBy: selectedTripUser?.id ?? null, createdAt: new Date().toISOString() },
-    ])
-    try {
-      const realId = await addTripActivity(tripId, {
-        date, hour, title, userId: selectedTripUser?.id ?? null,
-      })
-      setActivities((prev) => prev.map((a) => (a.id === tempId ? { ...a, id: realId } : a)))
-      trackEvent('activity_added', { trip_id: tripId, hour })
-    } catch (error) {
-      console.error(error)
-      setActivities((prev) => prev.filter((a) => a.id !== tempId))
-    }
-  }
-
-  async function handleRemoveActivity(activityId) {
-    setActivities((prev) => prev.filter((a) => a.id !== activityId))
-    trackEvent('activity_removed', { trip_id: tripId })
-    try {
-      await removeTripActivity(tripId, activityId)
-    } catch (error) {
-      console.error(error)
-    }
   }
 
   if (loading) return <TripLoadingSkeleton />
@@ -413,15 +432,16 @@ function TripPlanPage({ tripId }) {
       `}</style>
 
       <AppHeader tripName={trip?.name}>
-        <a
-          href={tripDatesPath}
-          className="shrink-0 flex items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+        <button
+          type="button"
+          onClick={() => navigate(tripDatesPath)}
+          className="shrink-0 flex cursor-pointer items-center gap-1 text-xs font-medium text-slate-500 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           {t('plan.backToDates')}
-        </a>
+        </button>
       </AppHeader>
 
       <section className="mx-auto mb-5 max-w-3xl">
@@ -470,11 +490,9 @@ function TripPlanPage({ tripId }) {
           <span
             aria-hidden="true"
             className={`pointer-events-none absolute inset-y-1 left-1 rounded-md bg-orange-500 transition-transform duration-200 ease-out ${
-              activeTab === 'hotels'  ? 'translate-x-0' :
-              activeTab === 'flights' ? 'translate-x-full' :
-              'translate-x-[200%]'
+              activeTab === 'hotels' ? 'translate-x-0' : 'translate-x-full'
             }`}
-            style={{ width: 'calc((100% - 8px) / 3)' }}
+            style={{ width: 'calc((100% - 8px) / 2)' }}
           />
           {TABS.map((tab) => (
             <button
@@ -494,18 +512,20 @@ function TripPlanPage({ tripId }) {
 
       <div className="mx-auto max-w-3xl">
         <div key={activeTab} className={`tab-enter-${slideDir}`}>
-          {activeTab === 'flights' && (
-            <FlightSearch key={`flights-${searchScheduleDates[0]}-${searchScheduleDates[searchScheduleDates.length - 1]}`} scheduleDates={searchScheduleDates} participantCount={tripUsers.length} tripId={tripId} />
-          )}
           {activeTab === 'hotels' && (
-            <HotelSearch key={`hotels-${searchScheduleDates[0]}-${searchScheduleDates[searchScheduleDates.length - 1]}`} scheduleDates={searchScheduleDates} participantCount={tripUsers.length} tripId={tripId} t={t} />
+            <HotelSearch
+              key={`hotels-${searchScheduleDates[0]}-${searchScheduleDates[searchScheduleDates.length - 1]}`}
+              scheduleDates={searchScheduleDates}
+              participantCount={tripUsers.length}
+              tripId={tripId}
+            />
           )}
-          {activeTab === 'agenda' && (
-            <TripSchedule
-              scheduleDates={scheduleDates}
-              activities={activities}
-              onAdd={handleAddActivity}
-              onRemove={handleRemoveActivity}
+          {activeTab === 'activities' && (
+            <ActivitySearch
+              key={`activities-${searchScheduleDates[0]}-${searchScheduleDates[searchScheduleDates.length - 1]}`}
+              scheduleDates={searchScheduleDates}
+              participantCount={tripUsers.length}
+              tripId={tripId}
             />
           )}
         </div>
@@ -517,6 +537,3 @@ function TripPlanPage({ tripId }) {
 }
 
 export default TripPlanPage
-
-
-

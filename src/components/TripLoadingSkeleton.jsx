@@ -1,5 +1,4 @@
 ﻿import { useTranslation } from 'react-i18next'
-import brandIcon from '../assets/svgS.svg'
 
 function TripLoadingSkeleton() {
   const { t } = useTranslation()
@@ -8,7 +7,7 @@ function TripLoadingSkeleton() {
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:px-6 sm:py-10">
       <header className="mx-auto mb-8 flex w-full max-w-3xl items-center gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 shadow-sm shadow-slate-200/80 dark:shadow-none">
         <div className="flex shrink-0 items-center">
-          <img src={brandIcon} alt="" className="h-11 w-11 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 object-contain shadow-sm" />
+          <img src="/favicon.png" alt="" className="h-11 w-11 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 object-contain shadow-sm" />
         </div>
         <div className="mx-1 h-4 w-px shrink-0 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
         <div className="h-4 flex-1 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />

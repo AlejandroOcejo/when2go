@@ -1,10 +1,17 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import AccessGate from './components/AccessGate'
+import ErrorBoundary from './components/ErrorBoundary'
 import TripPage from './pages/TripPage'
 import TripPlanPage from './pages/TripPlanPage'
 import LandingPage from './pages/LandingPage'
+import AboutPage from './pages/AboutPage'
+import ContactPage from './pages/ContactPage'
+import PrivacyPage from './pages/PrivacyPage'
+import TermsPage from './pages/TermsPage'
+import NotFoundPage from './pages/NotFoundPage'
 import { DarkModeProvider } from './lib/darkMode'
+import { NavigationContext } from './lib/navigation'
 import { initAnalytics } from './lib/telemetry'
 import {
   consumeTripAccessToken,
@@ -36,12 +43,8 @@ function App() {
     function onPopState() {
       setPathname(getPathname())
     }
-
     window.addEventListener('popstate', onPopState)
-
-    return () => {
-      window.removeEventListener('popstate', onPopState)
-    }
+    return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
   useEffect(() => {
@@ -55,10 +58,8 @@ function App() {
       try {
         if (tripId) {
           const accessToken = getAccessTokenFromSearch(window.location.search)
-
           if (accessToken) {
             const granted = await consumeTripAccessToken(tripId, accessToken)
-
             if (!cancelled && granted) {
               setIsAccessGranted(true)
               clearAccessTokenFromCurrentUrl()
@@ -67,26 +68,16 @@ function App() {
         }
 
         const active = await getSessionStatus()
-
-        if (!cancelled) {
-          setIsAccessGranted(active)
-        }
+        if (!cancelled) setIsAccessGranted(active)
       } catch {
-        if (!cancelled) {
-          setIsAccessGranted(false)
-        }
+        if (!cancelled) setIsAccessGranted(false)
       } finally {
-        if (!cancelled) {
-          setIsBootstrappingAccess(false)
-        }
+        if (!cancelled) setIsBootstrappingAccess(false)
       }
     }
 
     bootstrapAccessState()
-
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [tripId])
 
   function navigate(path) {
@@ -95,6 +86,11 @@ function App() {
   }
 
   function renderContent() {
+    if (pathname === '/about') return <AboutPage />
+    if (pathname === '/contact') return <ContactPage />
+    if (pathname === '/privacy') return <PrivacyPage />
+    if (pathname === '/terms') return <TermsPage />
+
     if (isBootstrappingAccess) {
       return (
         <main className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:px-6 sm:py-10">
@@ -110,24 +106,27 @@ function App() {
     }
 
     if (tripId) {
-      if (isPlanPath(pathname)) {
-        return <TripPlanPage tripId={tripId} onNavigate={navigate} />
-      }
-      return <TripPage tripId={tripId} onNavigate={navigate} />
+      if (isPlanPath(pathname)) return <TripPlanPage tripId={tripId} />
+      return <TripPage tripId={tripId} />
     }
 
-    return <LandingPage onNavigate={navigate} />
+    if (pathname === '/') return <LandingPage />
+
+    return <NotFoundPage />
   }
 
   return (
     <DarkModeProvider>
-      <div className="min-h-dvh bg-slate-50 dark:bg-slate-950 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-        {renderContent()}
-      </div>
+      <NavigationContext.Provider value={navigate}>
+        <ErrorBoundary>
+          <div className="min-h-dvh bg-slate-50 dark:bg-slate-950 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+            <a href="#main-content" className="skip-link">{t('ui.skipToContent')}</a>
+            {renderContent()}
+          </div>
+        </ErrorBoundary>
+      </NavigationContext.Provider>
     </DarkModeProvider>
   )
 }
 
 export default App
-
-
