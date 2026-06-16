@@ -1,6 +1,6 @@
 {
   "brand": {
-    "name": "voyora"
+    "name": "Voyora"
   },
   "badge": {
     "mvp": "MVP",
@@ -25,6 +25,12 @@
     "errorTitle": "Something went wrong",
     "errorBody": "An unexpected error occurred. Try refreshing the page — if the problem persists, contact us."
   },
+  "cookieConsent": {
+    "body": "We use a session cookie to keep you logged into your trips, and optional analytics cookies to help us improve voyora.",
+    "privacyLink": "Privacy Policy",
+    "reject": "Essential only",
+    "accept": "Accept all"
+  },
   "landing": {
     "eyebrow": "New trip",
     "title": "Find the week everyone can make it.",
@@ -41,6 +47,7 @@
     "add": "Add",
     "removeParticipant": "Remove {{name}}",
     "participantsHint": "Add at least one person before creating your shared trip page.",
+    "maxParticipantsReached": "You can add up to {{max}} participants.",
     "limitToMonthToggle": "Limit calendar to one month",
     "limitToMonthLabel": "Month and year",
     "limitToMonthHint": "When enabled, everyone opening the link will see only this month.",
@@ -72,8 +79,7 @@
     "shareHint": "Anyone with this link can update their availability.",
     "expandCard": "Expand group details",
     "collapseCard": "Collapse group details",
-    "noParticipantsTitle": "No participants in this trip",
-    "noParticipantsBody": "Ask the organizer to recreate the trip and add participant names first.",
+    "noParticipantsBody": "This trip closed before anyone joined.",
     "youAre": "You are",
     "switchUser": "Switch user",
     "readyCount": "{{confirmed}} of {{total}} ready",
@@ -90,13 +96,18 @@
     "editDatesConfirm": "Reopen your dates?",
     "editDatesConfirmAction": "Yes, reopen",
     "confirmCloseTitle": "Lock in the dates?",
-    "confirmCloseBody": "Everyone's availability will be locked in. This can't be undone.",
+    "confirmCloseBody": "Once closed, nobody will be able to add or change their dates. This can't be undone.",
     "confirmCloseAction": "Close trip",
     "confirmCloseCancel": "Cancel",
     "closedOverlayTitle": "Dates confirmed!",
     "closedOverlayParticipants_one": "{{count}} participant",
     "closedOverlayParticipants_other": "{{count}} participants",
-    "closedOverlayDismiss": "Back to trip"
+    "closedOverlayDismiss": "Back to trip",
+    "deleteTrip": "Delete this trip",
+    "deleteTripConfirm": "Delete this trip permanently?",
+    "deleteTripConfirmAction": "Yes, delete",
+    "deletingTrip": "Deleting…",
+    "deleteTripError": "Couldn't delete the trip right now. Please try again."
   },
   "calendar": {
     "title": "When can you travel?",
@@ -109,27 +120,30 @@
     "multipleDates": "Multiple dates",
     "dateRange": "Date range",
     "lockedTitle": "Selected dates",
-    "lockedSubtitle": "This trip has been closed. Dates are locked."
+    "lockedSubtitle": "This trip has been closed. Dates are locked.",
+    "maxDatesReached": "You can select up to {{max}} days."
   },
   "userPicker": {
     "title": "Who are you?",
-    "subtitle": "Choose your name to start marking your available dates."
+    "subtitle": "Choose your name to start marking your available dates.",
+    "notListedLabel": "Not on the list?",
+    "addPlaceholder": "Type your name",
+    "add": "Join",
+    "adding": "Joining…",
+    "nameTaken": "Someone already joined with that name — pick it from the list above.",
+    "tooManyParticipants": "This trip already has the maximum number of participants.",
+    "tripClosed": "This trip is closed, so new participants can't join.",
+    "addError": "Couldn't add you right now. Please try again."
   },
   "groupAvailability": {
     "title": "Group availability",
     "subtitle": "The most popular dates are highlighted in the calendar.",
     "empty": "No dates selected yet.",
     "topMatch": "Top match",
-    "available": "{{count}} available"
-  },
-  "schedule": {
-    "title": "Trip schedule",
-    "subtitle": "Plan activities for each day. Hover a time slot to add something.",
-    "add": "Add",
-    "activityPlaceholder": "Activity name…",
-    "removeActivity": "Remove activity",
-    "noDates": "No availability dates found.",
-    "noDatesHint": "Make sure participants have selected dates in the trip calendar."
+    "available": "{{count}} available",
+    "filteringFor": "Showing overlap for:",
+    "clearFilter": "Clear filter",
+    "noOverlap": "No dates work for everyone selected."
   },
   "plan": {
     "eyebrow": "Dates confirmed",
@@ -165,5 +179,94 @@
     "guestsLabel_other": "{{count}} guests",
     "searchButton": "Search on Booking.com",
     "disclaimer": "Opens Booking.com in a new tab with your trip dates pre-filled."
+  },
+  "about": {
+    "eyebrow": "About",
+    "title": "Finding dates that work for everyone.",
+    "subtitle": "voyora is a simple, account-free tool for group trip coordination. No spreadsheets, no back-and-forth messages — just a shared link and a calendar.",
+    "howItWorksTitle": "How it works",
+    "step1Title": "Create a trip",
+    "step1Body": "Give your trip a name and add the names of everyone joining — no email addresses or accounts required.",
+    "step2Title": "Share the link",
+    "step2Body": "You get a short, shareable link. Send it via WhatsApp, iMessage, email — however works best for your group.",
+    "step3Title": "Everyone picks their dates",
+    "step3Body": "Each person opens the link, selects their name, and taps the days they're available. Takes about 30 seconds.",
+    "step4Title": "See the overlap instantly",
+    "step4Body": "voyora highlights the days that work for the most people, so you can lock in dates and start planning.",
+    "feature1Title": "Zero accounts",
+    "feature1Body": "Access is controlled by a passcode. We don't ask for your email, name, or any personal information.",
+    "feature2Title": "Invite only",
+    "feature2Body": "Only people with the link and passcode can join a trip. Your availability data stays private to the group.",
+    "cta": "Create a trip"
+  },
+  "contact": {
+    "eyebrow": "Contact",
+    "title": "Get in touch",
+    "subtitle": "Questions, feedback, or something not working? We'd love to hear from you.",
+    "emailTitle": "Email",
+    "emailReply": "We aim to reply within a day or two. If you're reporting a bug, please include what you were doing and the trip link if possible — it helps a lot.",
+    "privacyTitle": "Data & privacy",
+    "privacyBody": "Want your trip data deleted? Email us with the trip link and we'll take care of it.",
+    "privacySeeOur": "See our",
+    "privacyPolicyLink": "Privacy Policy",
+    "privacyForMore": "for more details on how we handle your data."
+  },
+  "privacy": {
+    "eyebrow": "Legal",
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: June 2026",
+    "overviewTitle": "Overview",
+    "overviewBody": "voyora is designed with privacy in mind. We don't require any personal information to use the service — no name, email address, or phone number. This policy explains what data we do collect and how we use it.",
+    "collectTitle": "What we collect",
+    "collectIntro": "When you use voyora, the following data is stored:",
+    "collectItem1": "Trip data — trip name, participant names (as entered by the organiser), and availability dates.",
+    "collectItem2": "An anonymous user ID — randomly generated and stored in your browser's local storage. It has no connection to your real identity.",
+    "collectItem3": "Session tokens — stored as HttpOnly cookies to maintain your access between page loads.",
+    "notCollectTitle": "What we don't collect",
+    "notCollectItem1": "Your real name, email address, phone number, or any other personal identifier.",
+    "notCollectItem2": "Payment information — voyora is free.",
+    "notCollectItem3": "Location data.",
+    "analyticsTitle": "Analytics",
+    "analyticsBody": "We use PostHog to collect anonymised usage analytics (e.g. which features are used, how often trips are created). This data is tied to your anonymous user ID, not to any personal information. You can opt out of analytics by blocking the PostHog domain in your browser.",
+    "thirdPartyTitle": "Third-party services",
+    "thirdPartyIntro": "voyora uses the following third-party services:",
+    "thirdPartyItem1": "Supabase — database hosting (trip and availability data).",
+    "thirdPartyItem2": "Vercel — web hosting and serverless functions.",
+    "thirdPartyItem3": "PostHog — anonymised analytics.",
+    "thirdPartyOutro": "Each service has its own privacy policy. Trip data is stored on Supabase servers in the EU.",
+    "retentionTitle": "Data retention & deletion",
+    "retentionBefore": "Trip data is automatically deleted one month after the trip's last selected date (or one month after creation, if no dates were ever selected). If you'd like it removed sooner, email us at",
+    "retentionAfter": "with the trip link and we'll delete it promptly.",
+    "changesTitle": "Changes to this policy",
+    "changesBody": "We may update this policy from time to time. The \"last updated\" date at the top of this page will reflect any changes. Continued use of voyora after changes constitutes acceptance of the new policy.",
+    "contactTitle": "Contact",
+    "contactBefore": "Questions about this policy?",
+    "contactLink": "Get in touch"
+  },
+  "terms": {
+    "eyebrow": "Legal",
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: June 2026",
+    "acceptanceTitle": "Acceptance of terms",
+    "acceptanceBody": "By accessing or using voyora (\"the Service\"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the Service.",
+    "descriptionTitle": "Description of service",
+    "descriptionBody": "voyora is a group trip date coordination tool. It allows users to create trips, share availability, and identify overlapping dates without requiring accounts or personal information.",
+    "useTitle": "Acceptable use",
+    "useIntro": "You agree not to:",
+    "useItem1": "Use the Service for any unlawful purpose or in violation of any regulations.",
+    "useItem2": "Attempt to gain unauthorised access to the Service or its underlying systems.",
+    "useItem3": "Interfere with or disrupt the integrity or performance of the Service.",
+    "useItem4": "Transmit any malicious code or use the Service to harm others.",
+    "contentTitle": "User content",
+    "contentBody": "You are responsible for the content you submit (trip names, participant names, dates). By submitting content, you confirm it doesn't violate any applicable laws or third-party rights. We reserve the right to remove content that violates these terms.",
+    "warrantyTitle": "Disclaimer of warranties",
+    "warrantyBody": "The Service is provided \"as is\" and \"as available\" without warranties of any kind, express or implied. We do not warrant that the Service will be uninterrupted, error-free, or free of viruses or other harmful components.",
+    "liabilityTitle": "Limitation of liability",
+    "liabilityBody": "To the fullest extent permitted by law, voyora and its operators shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of (or inability to use) the Service.",
+    "changesTitle": "Changes to these terms",
+    "changesBody": "We may update these terms from time to time. The \"last updated\" date at the top of this page reflects the most recent revision. Continued use of the Service after changes constitutes acceptance of the new terms.",
+    "contactTitle": "Contact",
+    "contactBefore": "Questions about these terms?",
+    "contactLink": "Contact us"
   }
 }

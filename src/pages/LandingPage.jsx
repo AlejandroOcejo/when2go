@@ -5,7 +5,7 @@ import AppFooter from '../components/AppFooter'
 import AppHeader from '../components/AppHeader'
 import { trackEvent } from '../lib/telemetry'
 import { clearAccessToken, createTrip } from '../lib/supabaseBackend'
-import { getRecentTrips, getTripPathById, saveTripMonthLock } from '../lib/tripLink'
+import { getRecentTrips, getTripPathById } from '../lib/tripLink'
 import { inputCls, labelCls, ORANGE_RGB, ORANGE_DARK_HEX } from '../lib/tokens'
 
 function formatMonthKey(year, month) {
@@ -52,6 +52,8 @@ const DEMO_MONTH = [
   { num: 29, count: 0, selected: false },
   { num: 30, count: 0, selected: false },
 ]
+const MAX_PARTICIPANTS = 50
+
 const DEMO_DAY_LABELS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 const DEMO_CELLS = [...DEMO_MONTH, ...Array(5).fill(null)]
 
@@ -132,6 +134,7 @@ function LandingPage() {
   const [limitedMonth, setLimitedMonth] = useState('')
   const [isCreatingTrip, setIsCreatingTrip] = useState(false)
   const [createTripError, setCreateTripError] = useState(null)
+  const [maxParticipantsReached, setMaxParticipantsReached] = useState(false)
   const [recentTrips] = useState(() => getRecentTrips())
 
   const currentDate = useMemo(() => new Date(), [])
@@ -160,6 +163,11 @@ function LandingPage() {
       setParticipantName('')
       return
     }
+    if (participants.length >= MAX_PARTICIPANTS) {
+      setMaxParticipantsReached(true)
+      return
+    }
+    setMaxParticipantsReached(false)
     setParticipants((current) => [...current, trimmed])
     setRecentlyAddedParticipant(trimmed)
     trackEvent('participant_added', { participant_count: participants.length + 1 })
@@ -186,14 +194,13 @@ function LandingPage() {
     setCreateTripError(null)
     try {
       setIsCreatingTrip(true)
-      const trip = await createTrip(trimmed, cleanParticipants)
+      const trip = await createTrip(trimmed, cleanParticipants, monthLock)
       if (!trip?.id) throw new Error('Failed to create trip: missing trip id in response')
       trackEvent('trip_created', {
         trip_id: trip.id,
         participant_count: cleanParticipants.length,
         trip_name_length: trimmed.length,
       })
-      if (monthLock) saveTripMonthLock(trip.id, monthLock)
       navigate(getTripPathById(trip.id))
     } catch (error) {
       console.error(error)
@@ -370,6 +377,11 @@ function LandingPage() {
               )}
 
               <p className="mt-2.5 text-xs text-slate-400 dark:text-slate-500">{t('landing.participantsHint')}</p>
+              {maxParticipantsReached && (
+                <p className="mt-1.5 text-xs font-medium text-rose-600 dark:text-rose-400">
+                  {t('landing.maxParticipantsReached', { max: MAX_PARTICIPANTS })}
+                </p>
+              )}
             </div>
 
             {/* Month limit */}

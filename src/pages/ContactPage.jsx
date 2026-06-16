@@ -1,7 +1,12 @@
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from '../lib/navigation'
 import AppHeader from '../components/AppHeader'
 import AppFooter from '../components/AppFooter'
 
 function ContactPage() {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-12 sm:px-6 sm:py-16">
       <AppHeader />
@@ -9,19 +14,19 @@ function ContactPage() {
       <div className="mx-auto max-w-3xl space-y-5">
         <div>
           <p className="inline-flex border-l-2 border-orange-500 pl-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4">
-            Contact
+            {t('contact.eyebrow')}
           </p>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-4xl">
-            Get in touch
+            {t('contact.title')}
           </h1>
           <p className="mt-4 text-base leading-relaxed text-slate-500 dark:text-slate-400">
-            Questions, feedback, or something not working? We'd love to hear from you.
+            {t('contact.subtitle')}
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-md shadow-slate-200/60 dark:shadow-none">
           <h2 className="border-l-2 border-orange-500 pl-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 mb-5">
-            Email
+            {t('contact.emailTitle')}
           </h2>
 
           <a
@@ -38,20 +43,25 @@ function ContactPage() {
           </a>
 
           <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            We aim to reply within a day or two. If you're reporting a bug, please include what you were doing and the trip link if possible — it helps a lot.
+            {t('contact.emailReply')}
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-md shadow-slate-200/60 dark:shadow-none">
           <h2 className="border-l-2 border-orange-500 pl-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4">
-            Data & privacy
+            {t('contact.privacyTitle')}
           </h2>
           <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            Want your trip data deleted? Email us with the trip link and we'll take care of it. See our{' '}
-            <a href="/privacy" className="font-medium text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition duration-150">
-              Privacy Policy
-            </a>{' '}
-            for more details on how we handle your data.
+            {t('contact.privacyBody')}{' '}
+            {t('contact.privacySeeOur')}{' '}
+            <button
+              type="button"
+              onClick={() => navigate('/privacy')}
+              className="cursor-pointer font-medium text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition duration-150"
+            >
+              {t('contact.privacyPolicyLink')}
+            </button>
+            {' '}{t('contact.privacyForMore')}
           </p>
         </div>
       </div>

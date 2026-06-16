@@ -131,12 +131,13 @@ export async function consumeTripAccessToken(tripId, accessToken) {
   return ok
 }
 
-export async function createTrip(name, participantNames = []) {
+export async function createTrip(name, participantNames = [], lockedMonth = '') {
   const participants = normalizeParticipantNames(participantNames)
   const result = await apiPost('/api/trip', {
     action: 'createTrip',
     tripName: String(name ?? '').trim(),
     participantNames: participants,
+    lockedMonth: String(lockedMonth ?? '').trim(),
   })
 
   return {
@@ -174,6 +175,7 @@ export async function getTrip(tripId) {
     id: raw.id,
     name: raw.name,
     closedAt: raw.closed_at ?? null,
+    lockedMonth: raw.locked_month ?? null,
   }
 }
 
@@ -189,6 +191,32 @@ export async function getTripUsers(tripId) {
     color: user.color ?? '#5f6f52',
     confirmedAt: user.confirmed_at ?? null,
   }))
+}
+
+export async function addParticipant(tripId, name) {
+  const result = await apiPost('/api/trip', {
+    action: 'addParticipant',
+    tripId,
+    name: String(name ?? '').trim(),
+  })
+
+  const raw = result?.user ?? null
+
+  if (!raw) return null
+
+  return {
+    id: raw.id,
+    name: raw.name,
+    color: raw.color ?? '#5f6f52',
+    confirmedAt: raw.confirmed_at ?? null,
+  }
+}
+
+export async function deleteTrip(tripId) {
+  await apiPost('/api/trip', {
+    action: 'deleteTrip',
+    tripId,
+  })
 }
 
 export async function replaceAvailability(tripId, userId, dates) {

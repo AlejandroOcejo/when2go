@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from '../lib/navigation'
 import AppHeader from '../components/AppHeader'
 import AppFooter from '../components/AppFooter'
 
@@ -24,7 +26,14 @@ function Ul({ items }) {
   )
 }
 
+function Divider() {
+  return <div className="h-px bg-slate-100 dark:bg-slate-800" />
+}
+
 function PrivacyPage() {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-12 sm:px-6 sm:py-16">
       <AppHeader />
@@ -32,91 +41,77 @@ function PrivacyPage() {
       <div className="mx-auto max-w-3xl space-y-5">
         <div>
           <p className="inline-flex border-l-2 border-orange-500 pl-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 mb-4">
-            Legal
+            {t('privacy.eyebrow')}
           </p>
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-4xl">
-            Privacy Policy
+            {t('privacy.title')}
           </h1>
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Last updated: June 2026</p>
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{t('privacy.lastUpdated')}</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-md shadow-slate-200/60 dark:shadow-none space-y-7">
 
-          <Section title="Overview">
+          <Section title={t('privacy.overviewTitle')}>
+            <P>{t('privacy.overviewBody')}</P>
+          </Section>
+
+          <Divider />
+
+          <Section title={t('privacy.collectTitle')}>
+            <P>{t('privacy.collectIntro')}</P>
+            <Ul items={[t('privacy.collectItem1'), t('privacy.collectItem2'), t('privacy.collectItem3')]} />
+          </Section>
+
+          <Divider />
+
+          <Section title={t('privacy.notCollectTitle')}>
+            <Ul items={[t('privacy.notCollectItem1'), t('privacy.notCollectItem2'), t('privacy.notCollectItem3')]} />
+          </Section>
+
+          <Divider />
+
+          <Section title={t('privacy.analyticsTitle')}>
+            <P>{t('privacy.analyticsBody')}</P>
+          </Section>
+
+          <Divider />
+
+          <Section title={t('privacy.thirdPartyTitle')}>
+            <P>{t('privacy.thirdPartyIntro')}</P>
+            <Ul items={[t('privacy.thirdPartyItem1'), t('privacy.thirdPartyItem2'), t('privacy.thirdPartyItem3')]} />
+            <P>{t('privacy.thirdPartyOutro')}</P>
+          </Section>
+
+          <Divider />
+
+          <Section title={t('privacy.retentionTitle')}>
             <P>
-              voyora is designed with privacy in mind. We don't require any personal information to use the service — no name, email address, or phone number. This policy explains what data we do collect and how we use it.
-            </P>
-          </Section>
-
-          <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-          <Section title="What we collect">
-            <P>When you use voyora, the following data is stored:</P>
-            <Ul items={[
-              'Trip data — trip name, participant names (as entered by the organiser), and availability dates.',
-              'An anonymous user ID — randomly generated and stored in your browser\'s local storage. It has no connection to your real identity.',
-              'Session tokens — stored as HttpOnly cookies to maintain your access between page loads.',
-            ]} />
-          </Section>
-
-          <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-          <Section title="What we don't collect">
-            <Ul items={[
-              'Your real name, email address, phone number, or any other personal identifier.',
-              'Payment information — voyora is free.',
-              'Location data.',
-            ]} />
-          </Section>
-
-          <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-          <Section title="Analytics">
-            <P>
-              We use PostHog to collect anonymised usage analytics (e.g. which features are used, how often trips are created). This data is tied to your anonymous user ID, not to any personal information. You can opt out of analytics by blocking the PostHog domain in your browser.
-            </P>
-          </Section>
-
-          <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-          <Section title="Third-party services">
-            <P>voyora uses the following third-party services:</P>
-            <Ul items={[
-              'Supabase — database hosting (trip and availability data).',
-              'Vercel — web hosting and serverless functions.',
-              'PostHog — anonymised analytics.',
-            ]} />
-            <P>Each service has its own privacy policy. Trip data is stored on Supabase servers in the EU.</P>
-          </Section>
-
-          <div className="h-px bg-slate-100 dark:bg-slate-800" />
-
-          <Section title="Data retention & deletion">
-            <P>
-              Trip data is retained until manually deleted. If you'd like your trip data removed, email us at{' '}
+              {t('privacy.retentionBefore')}{' '}
               <a href="mailto:hello@voyora.app" className="font-medium text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition duration-150">
                 hello@voyora.app
-              </a>{' '}
-              with the trip link and we'll delete it promptly.
+              </a>
+              {' '}{t('privacy.retentionAfter')}
             </P>
           </Section>
 
-          <div className="h-px bg-slate-100 dark:bg-slate-800" />
+          <Divider />
 
-          <Section title="Changes to this policy">
-            <P>
-              We may update this policy from time to time. The "last updated" date at the top of this page will reflect any changes. Continued use of voyora after changes constitutes acceptance of the new policy.
-            </P>
+          <Section title={t('privacy.changesTitle')}>
+            <P>{t('privacy.changesBody')}</P>
           </Section>
 
-          <div className="h-px bg-slate-100 dark:bg-slate-800" />
+          <Divider />
 
-          <Section title="Contact">
+          <Section title={t('privacy.contactTitle')}>
             <P>
-              Questions about this policy?{' '}
-              <a href="/contact" className="font-medium text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition duration-150">
-                Get in touch
-              </a>.
+              {t('privacy.contactBefore')}{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/contact')}
+                className="cursor-pointer font-medium text-orange-500 hover:text-orange-600 dark:text-orange-400 dark:hover:text-orange-300 transition duration-150"
+              >
+                {t('privacy.contactLink')}
+              </button>.
             </P>
           </Section>
         </div>

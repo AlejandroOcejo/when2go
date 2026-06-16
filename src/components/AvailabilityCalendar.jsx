@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { trackEvent } from '../lib/telemetry'
 import { ORANGE_RGB, ORANGE_DARK_HEX } from '../lib/tokens'
 
+const MAX_SELECTED_DATES = 120
+
 const DAY_BUTTON_CLASSES =
   'relative inline-flex h-10 w-10 min-h-10 min-w-10 max-h-10 max-w-10 aspect-square box-border cursor-pointer items-center justify-center rounded-md p-0 text-sm font-semibold text-slate-900 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-[0.98] transition-[background-color,transform,color] duration-150 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-transparent disabled:text-slate-300 dark:disabled:text-slate-600 disabled:opacity-60 disabled:active:scale-100 select-none [touch-action:manipulation]'
 
@@ -221,7 +223,17 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
   const [rangeDraft, setRangeDraft] = useState(undefined)
   const [tapPulseKey, setTapPulseKey] = useState('')
   const [newlyAppearedKeys, setNewlyAppearedKeys] = useState(() => new Set())
+  const [limitReached, setLimitReached] = useState(false)
   const prevAvailabilityRef = useRef(null)
+  const limitReachedTimerRef = useRef(null)
+
+  function flashLimitReached() {
+    setLimitReached(true)
+    window.clearTimeout(limitReachedTimerRef.current)
+    limitReachedTimerRef.current = window.setTimeout(() => setLimitReached(false), 3000)
+  }
+
+  useEffect(() => () => window.clearTimeout(limitReachedTimerRef.current), [])
 
   const fixedMonthDate = useMemo(() => monthKeyToDate(lockedMonth), [lockedMonth])
   const today = useMemo(() => {
@@ -248,6 +260,8 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
     }, {})
   }, [groupedAvailability])
 
+  const ownSelectedDateKeys = useMemo(() => new Set(selectedDates), [selectedDates])
+
   useEffect(() => {
     const prev = prevAvailabilityRef.current
     prevAvailabilityRef.current = availabilityCountByDate
@@ -255,6 +269,9 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
 
     const appeared = new Set()
     for (const [key, count] of Object.entries(availabilityCountByDate)) {
+      // Own selections already get the tap-pop animation — skip them here so the
+      // two animations don't both fire back-to-back on the same day.
+      if (ownSelectedDateKeys.has(key)) continue
       if (count > 0 && (prev[key] ?? 0) === 0) appeared.add(key)
     }
     if (appeared.size === 0) return
@@ -262,7 +279,7 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
     setNewlyAppearedKeys(appeared)
     const timer = setTimeout(() => setNewlyAppearedKeys(new Set()), 380)
     return () => clearTimeout(timer)
-  }, [availabilityCountByDate])
+  }, [availabilityCountByDate, ownSelectedDateKeys])
 
   const sharedPickerProps = useMemo(() => ({
     animate: true,
@@ -336,6 +353,12 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
           </p>
         )}
 
+        {!readOnly && limitReached && (
+          <p className="mt-2 text-xs font-medium text-rose-600 dark:text-rose-400">
+            {t('calendar.maxDatesReached', { max: MAX_SELECTED_DATES })}
+          </p>
+        )}
+
         {!readOnly && (
           <div className="mt-6 flex w-full justify-center">
             <div className="relative inline-grid w-full max-w-[300px] grid-cols-2 rounded-md border border-slate-400 dark:border-slate-600 bg-white dark:bg-slate-800 p-1">
@@ -389,6 +412,12 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
             selected={selectedDateObjects}
             onSelect={(nextDates) => {
               const next = (nextDates ?? []).map((date) => toDateKey(date))
+
+              if (next.length > MAX_SELECTED_DATES) {
+                flashLimitReached()
+                return
+              }
+
               onChange(next)
             }}
             components={PICKER_COMPONENTS}
@@ -406,7 +435,14 @@ function AvailabilityCalendar({ selectedDates, groupedAvailability, totalUsers, 
 
               const start = nextRange.from <= nextRange.to ? nextRange.from : nextRange.to
               const end = nextRange.from <= nextRange.to ? nextRange.to : nextRange.from
-              onChange(mergeDateKeys(selectedDates, expandRange(start, end)))
+              const merged = mergeDateKeys(selectedDates, expandRange(start, end))
+
+              if (merged.length > MAX_SELECTED_DATES) {
+                flashLimitReached()
+                return
+              }
+
+              onChange(merged)
             }}
             modifiers={{ existingSelection: selectedDateObjects }}
             modifiersClassNames={{ existingSelection: 'text-slate-900 dark:text-slate-100 font-semibold' }}

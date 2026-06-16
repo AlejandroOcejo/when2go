@@ -8,9 +8,12 @@ import ShareCard from '../components/ShareCard'
 import TripLoadingSkeleton from '../components/TripLoadingSkeleton'
 import UserPicker from '../components/UserPicker'
 import { identifyAnalyticsUser, trackEvent } from '../lib/telemetry'
+import { useNavigate } from '../lib/navigation'
 import {
+  addParticipant,
   closeTrip,
   confirmReady,
+  deleteTrip,
   getTrip,
   getTripAvailability,
   getTripUsers,
@@ -25,7 +28,6 @@ import {
 } from '../lib/userIdentity'
 import {
   buildTripSharePath,
-  getTripMonthLock,
   getTripPathById,
   getTripPlanPath,
   saveRecentTrip,
@@ -123,14 +125,9 @@ function withUserAvailabilityRows(rows, user, tripId, selectedDates) {
   return [...withoutUserRows, ...nextRows]
 }
 
-function getMonthFromSearch(search) {
-  const params = new URLSearchParams(search)
-  const month = String(params.get('month') ?? '').trim()
-  return /^\d{4}-(0[1-9]|1[0-2])$/.test(month) ? month : null
-}
-
 function TripPage({ tripId }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [trip, setTrip] = useState(null)
   const [loading, setLoading] = useState(true)
   const [missingTrip, setMissingTrip] = useState(false)
@@ -149,6 +146,9 @@ function TripPage({ tripId }) {
   const [closeFlowPhase, setCloseFlowPhase] = useState(null) // null | 'confirm' | 'success'
   const [closeFlowAnimReady, setCloseFlowAnimReady] = useState(false)
   const [closeFlowContentVisible, setCloseFlowContentVisible] = useState(true)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [isDeletingTrip, setIsDeletingTrip] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const pendingDatesRef = useRef([])
   const syncedDatesRef = useRef([])
   const isSyncingRef = useRef(false)
@@ -171,7 +171,7 @@ function TripPage({ tripId }) {
     [groupedAvailability],
   )
 
-  const lockedMonth = getMonthFromSearch(window.location.search) ?? getTripMonthLock(tripId)
+  const lockedMonth = trip?.lockedMonth ?? null
 
   useEffect(() => {
     identifyAnalyticsUser(viewer.id)
@@ -410,6 +410,17 @@ function TripPage({ tripId }) {
     trackEvent('trip_user_selected', { trip_id: tripId })
   }
 
+  async function handleAddParticipant(name) {
+    const user = await addParticipant(tripId, name)
+
+    if (user) {
+      setTripUsers((current) => [...current, user])
+      trackEvent('participant_added_post_creation', { trip_id: tripId })
+    }
+
+    return user
+  }
+
   async function handleClearSelectedUser() {
     await flushAndSetUser(null)
   }
@@ -444,6 +455,11 @@ function TripPage({ tripId }) {
 
     try {
       setIsConfirmingReady(true)
+      if (!areDateKeysEqual(pendingDatesRef.current, syncedDatesRef.current)) {
+        const pendingDates = normalizeDateKeys(pendingDatesRef.current)
+        await replaceAvailability(tripId, selectedTripUser.id, pendingDates)
+        syncedDatesRef.current = pendingDates
+      }
       await confirmReady(tripId, selectedTripUser.id)
       setTripUsers((users) =>
         users.map((u) =>
@@ -491,6 +507,23 @@ function TripPage({ tripId }) {
       console.error(error)
     } finally {
       setIsClosingTrip(false)
+    }
+  }
+
+  async function handleDeleteTrip() {
+    if (isDeletingTrip) return
+
+    setDeleteError('')
+
+    try {
+      setIsDeletingTrip(true)
+      await deleteTrip(tripId)
+      trackEvent('trip_deleted', { trip_id: tripId })
+      navigate('/')
+    } catch (error) {
+      console.error(error)
+      setDeleteError(t('trip.deleteTripError'))
+      setIsDeletingTrip(false)
     }
   }
 
@@ -607,14 +640,12 @@ function TripPage({ tripId }) {
 
       {!selectedTripUser ? (
         <div className="mx-auto mt-5 sm:mt-8 max-w-3xl">
-          {tripUsers.length === 0 ? (
-            <section className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-6 sm:p-7">
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{t('trip.noParticipantsTitle')}</h2>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('trip.noParticipantsBody')}</p>
-            </section>
-          ) : (
-            <UserPicker users={tripUsers} onSelect={handleUserSelect} />
-          )}
+          <UserPicker
+            users={tripUsers}
+            onSelect={handleUserSelect}
+            onAddParticipant={handleAddParticipant}
+            addDisabled={Boolean(trip.closedAt)}
+          />
         </div>
       ) : (
         <>
@@ -677,9 +708,9 @@ function TripPage({ tripId }) {
                           type="button"
                           onClick={() => { setCloseFlowPhase('confirm'); setCloseFlowContentVisible(true); trackEvent('close_trip_modal_opened', { trip_id: tripId }) }}
                           disabled={isClosingTrip}
-                          className="inline-flex items-center gap-1.5 cursor-pointer rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition duration-150 hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 cursor-pointer rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition duration-150 hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                           {t('trip.closeTrip')}
                         </button>
                       </>
@@ -716,6 +747,43 @@ function TripPage({ tripId }) {
         </>
       )}
 
+      <div className="mx-auto mt-8 max-w-3xl text-center">
+        {deleteConfirmOpen ? (
+          <div className="inline-flex flex-wrap items-center justify-center gap-2 text-xs">
+            <span className="font-medium text-slate-500 dark:text-slate-400">{t('trip.deleteTripConfirm')}</span>
+            <button
+              type="button"
+              onClick={handleDeleteTrip}
+              disabled={isDeletingTrip}
+              className="cursor-pointer rounded-lg bg-rose-600 px-3 py-1.5 font-semibold text-white transition duration-150 hover:bg-rose-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isDeletingTrip ? t('trip.deletingTrip') : t('trip.deleteTripConfirmAction')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={isDeletingTrip}
+              className="cursor-pointer rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 font-medium text-slate-600 dark:text-slate-300 transition duration-150 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              {t('trip.confirmCloseCancel')}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setDeleteConfirmOpen(true)}
+            className="cursor-pointer text-xs font-medium text-slate-400 dark:text-slate-500 transition-colors hover:text-rose-500 dark:hover:text-rose-400"
+          >
+            {t('trip.deleteTrip')}
+          </button>
+        )}
+        {deleteError && (
+          <p role="alert" className="mt-2 text-xs font-medium text-rose-600 dark:text-rose-400">
+            {deleteError}
+          </p>
+        )}
+      </div>
+
       <AppFooter />
 
       {closeFlowPhase !== null && (
@@ -728,32 +796,38 @@ function TripPage({ tripId }) {
             onClick={(e) => e.stopPropagation()}
             className={`w-full max-w-sm overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-2xl transition-all duration-500 ${closeFlowAnimReady ? 'scale-100 translate-y-0' : 'scale-95 translate-y-6'}`}
           >
-            <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600" />
+            <div className={`h-1.5 bg-gradient-to-r ${closeFlowPhase === 'confirm' ? 'from-orange-400 to-orange-600' : 'from-emerald-400 to-emerald-600'}`} />
             <div className={`transition-opacity duration-200 ${closeFlowContentVisible ? 'opacity-100' : 'opacity-0'}`}>
               {closeFlowPhase === 'confirm' ? (
                 <div className="px-8 pb-8 pt-7 text-center">
-                  <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/30">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600 dark:text-emerald-400" aria-hidden="true">
+                  <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 dark:bg-orange-950/30">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-600 dark:text-orange-400" aria-hidden="true">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
                   </div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('trip.confirmCloseTitle')}</p>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-orange-600 dark:text-orange-400">{t('trip.confirmCloseTitle')}</p>
                   <p className="mt-2 truncate text-2xl font-extrabold text-slate-900 dark:text-white">
                     {(() => { const em = getTripEmoji(trip?.name); return em ? <span className="mr-2">{em}</span> : null })()}
                     {trip?.name}
                   </p>
-                  <div className="mt-5 rounded-xl bg-slate-50 dark:bg-slate-800 px-4 py-3.5">
+                  <div className="mt-5 rounded-xl border border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/30 px-4 py-3.5 text-left">
                     <p className="font-semibold text-slate-800 dark:text-slate-200">
                       {t('trip.readyCount', { confirmed: confirmedCount, total: tripUsers.length })}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t('trip.confirmCloseBody')}</p>
+                    <div className="mt-1.5 flex items-start gap-2">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-orange-600 dark:text-orange-400" aria-hidden="true">
+                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                        <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                      <p className="text-sm font-semibold text-orange-700 dark:text-orange-400">{t('trip.confirmCloseBody')}</p>
+                    </div>
                   </div>
                   <button
                     type="button"
                     onClick={handleCloseTrip}
                     disabled={isClosingTrip}
-                    className="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange-500 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-150 hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isClosingTrip ? t('trip.closingTrip') : t('trip.confirmCloseAction')}
                     {!isClosingTrip && (

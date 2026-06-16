@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import AccessGate from './components/AccessGate'
+import CookieConsent from './components/CookieConsent'
 import ErrorBoundary from './components/ErrorBoundary'
 import TripPage from './pages/TripPage'
 import TripPlanPage from './pages/TripPlanPage'
@@ -10,6 +11,7 @@ import ContactPage from './pages/ContactPage'
 import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
 import NotFoundPage from './pages/NotFoundPage'
+import { getCookieConsent, setCookieConsent } from './lib/cookieConsent'
 import { DarkModeProvider } from './lib/darkMode'
 import { NavigationContext } from './lib/navigation'
 import { initAnalytics } from './lib/telemetry'
@@ -36,6 +38,7 @@ function App() {
   const [pathname, setPathname] = useState(() => getPathname())
   const [isAccessGranted, setIsAccessGranted] = useState(() => hasStoredAccessToken())
   const [isBootstrappingAccess, setIsBootstrappingAccess] = useState(() => !hasStoredAccessToken())
+  const [cookieConsent, setCookieConsentState] = useState(() => getCookieConsent())
 
   const tripId = getTripIdFromPath(pathname)
 
@@ -48,8 +51,20 @@ function App() {
   }, [])
 
   useEffect(() => {
-    initAnalytics(viewer.id)
-  }, [viewer.id])
+    if (cookieConsent === 'accepted') {
+      initAnalytics(viewer.id)
+    }
+  }, [cookieConsent, viewer.id])
+
+  function handleAcceptCookies() {
+    setCookieConsent('accepted')
+    setCookieConsentState('accepted')
+  }
+
+  function handleRejectCookies() {
+    setCookieConsent('rejected')
+    setCookieConsentState('rejected')
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -122,6 +137,9 @@ function App() {
           <div className="min-h-dvh bg-slate-50 dark:bg-slate-950 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
             <a href="#main-content" className="skip-link">{t('ui.skipToContent')}</a>
             {renderContent()}
+            {cookieConsent === null && (
+              <CookieConsent onAccept={handleAcceptCookies} onReject={handleRejectCookies} />
+            )}
           </div>
         </ErrorBoundary>
       </NavigationContext.Provider>

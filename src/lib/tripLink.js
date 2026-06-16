@@ -1,6 +1,5 @@
 const BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 const BASE62_MAP = new Map([...BASE62_ALPHABET].map((char, index) => [char, index]))
-const TRIP_MONTH_LOCK_PREFIX = 'trip-month-lock:'
 const RECENT_TRIPS_STORAGE_KEY = 'recent-trips:v1'
 
 function isUuid(value) {
@@ -239,32 +238,3 @@ export function removeRecentTrip(tripId) {
   }
 }
 
-export function saveTripMonthLock(tripId, monthKey) {
-  const safeTripId = String(tripId ?? '').trim()
-  const safeMonthKey = String(monthKey ?? '').trim()
-
-  if (!safeTripId || !/^\d{4}-(0[1-9]|1[0-2])$/.test(safeMonthKey)) {
-    return
-  }
-
-  try {
-    window.sessionStorage.setItem(`${TRIP_MONTH_LOCK_PREFIX}${safeTripId}`, safeMonthKey)
-  } catch {
-    // Ignore storage failures.
-  }
-}
-
-export function getTripMonthLock(tripId) {
-  const safeTripId = String(tripId ?? '').trim()
-
-  if (!safeTripId) {
-    return null
-  }
-
-  try {
-    const stored = String(window.sessionStorage.getItem(`${TRIP_MONTH_LOCK_PREFIX}${safeTripId}`) ?? '').trim()
-    return /^\d{4}-(0[1-9]|1[0-2])$/.test(stored) ? stored : null
-  } catch {
-    return null
-  }
-}
